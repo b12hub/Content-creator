@@ -60,6 +60,43 @@ BEGIN
   RETURN TRUE;
 END $$;
 
+-- make_date that clamps the day (Feb 29 in non-leap years -> Feb 28)
+CREATE OR REPLACE FUNCTION safe_make_date(y INT, m INT, d INT)
+RETURNS DATE LANGUAGE sql IMMUTABLE
+SET search_path = biolife, public
+AS $$
+  SELECT make_date(y, m, 1)
+       + (LEAST(d, EXTRACT(DAY FROM (make_date(y, m, 1) + INTERVAL '1 month - 1 day'))::int) - 1)
+$$;
+
+-- Concrete start/end of the event window that contains p_date (occurrence row wins)
+CREATE OR REPLACE FUNCTION event_window(p_event_id INT, p_date DATE,
+                                        OUT window_start DATE, OUT window_end DATE)
+LANGUAGE plpgsql STABLE
+SET search_path = biolife, public
+AS $$
+DECLARE e cultural_events_seasons%ROWTYPE; y INT := EXTRACT(YEAR FROM p_date);
+BEGIN
+  SELECT o.start_date, o.end_date INTO window_start, window_end
+  FROM event_occurrences o
+  WHERE o.event_id = p_event_id AND p_date BETWEEN o.start_date AND o.end_date
+  LIMIT 1;
+  IF window_start IS NOT NULL THEN RETURN; END IF;
+
+  SELECT * INTO e FROM cultural_events_seasons WHERE id = p_event_id;
+  IF e.anchor_type = 'HIJRI_LUNAR' OR e.id IS NULL THEN RETURN; END IF;
+  IF e.start_month*100 + e.start_day <= e.end_month*100 + e.end_day THEN
+    window_start := safe_make_date(y, e.start_month, e.start_day);
+    window_end   := safe_make_date(y, e.end_month, e.end_day);
+  ELSIF EXTRACT(MONTH FROM p_date)*100 + EXTRACT(DAY FROM p_date) >= e.start_month*100 + e.start_day THEN
+    window_start := safe_make_date(y, e.start_month, e.start_day);       -- Dec part of a wrap
+    window_end   := safe_make_date(y + 1, e.end_month, e.end_day);
+  ELSE
+    window_start := safe_make_date(y - 1, e.start_month, e.start_day);   -- Jan part of a wrap
+    window_end   := safe_make_date(y, e.end_month, e.end_day);
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION resolve_ad_context(
   p_date     DATE    DEFAULT CURRENT_DATE,
   p_temp_c   NUMERIC DEFAULT NULL,
@@ -90,6 +127,8 @@ DECLARE
   v_warnings    JSONB := '[]'::jsonb;
   v_guardrails  JSONB := '[]'::jsonb;
   v_estimated   BOOLEAN := FALSE;
+  v_wstart      DATE;
+  v_wend        DATE;
 BEGIN
   SELECT * INTO v_grid FROM annual_calendar_grid WHERE month_number = v_month;
 
@@ -107,6 +146,10 @@ BEGIN
   SELECT e.* INTO v_event
   FROM active_events(p_date) a JOIN cultural_events_seasons e ON e.id = a.event_id
   ORDER BY a.priority DESC, a.key LIMIT 1;
+
+  IF v_event.id IS NOT NULL THEN
+    SELECT w.window_start, w.window_end INTO v_wstart, v_wend FROM event_window(v_event.id, p_date) w;
+  END IF;
 
   SELECT jsonb_agg(e.content_guardrails) INTO v_guardrails
   FROM cultural_events_seasons e
@@ -185,6 +228,10 @@ BEGIN
     'month_context', v_grid.primary_cultural_context,
     'primary_event', CASE WHEN v_event.id IS NULL THEN NULL ELSE jsonb_build_object(
         'key', v_event.key, 'name_uz', v_event.name_uz, 'name_ru', v_event.name_ru,
+        'priority', v_event.priority,
+        'window_start', v_wstart, 'window_end', v_wend,
+        'day_index', CASE WHEN v_wstart IS NULL THEN NULL ELSE p_date - v_wstart + 1 END,
+        'days_total', CASE WHEN v_wstart IS NULL THEN NULL ELSE v_wend - v_wstart + 1 END,
         'physiological_state', v_event.physiological_state,
         'emotional_state', v_event.emotional_state,
         'cultural_rituals', to_jsonb(v_event.cultural_rituals),

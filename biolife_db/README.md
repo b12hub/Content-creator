@@ -10,7 +10,7 @@
 | `01_schema.sql` | Таблицы, типы, связи (PostgreSQL 14+, схема `biolife`) |
 | `02_functions.sql` | Функция `resolve_ad_context()` — «мозг» (Раздел 3) |
 | `03_seed.sql` | Сгенерированные INSERT'ы (руками не править) |
-| `04_tests.sql` | 19 автотестов |
+| `04_tests.sql` | 23 автотеста |
 | `runtime_contract.schema.json` | Формат входа/выхода для генератора |
 | `examples/*.json` | Реальные ответы базы: Чилля +43°C, Рамадан, Навруз, свадьба |
 
@@ -44,3 +44,8 @@ SELECT biolife.resolve_ad_context(
 - Новое событие: добавить объект в `cultural_events_seasons` + хотя бы 1 запись в `event_framework_mappings` (скрипт не даст забыть).
 - Новый фреймворк: `ALTER TYPE biolife.framework_type ADD VALUE 'NEW_NAME';` + строка в JSON.
 - Новое правило: объект в `inference_rules`. Условия: `temp_gte`, `temp_lte`, `month_in`, `event_key_in`, `trend_present`. Действия: `framework`, `sku`, `tone_modifier`, `visual_modifier`, `note`.
+
+## v1.1 (для медиапланировщика, этап 4)
+`primary_event` в ответе `resolve_ad_context()` теперь также содержит `priority`, `window_start`, `window_end`,
+`day_index` (какой по счёту день события) и `days_total`. Изменение только добавляет поля — старые клиенты не ломаются.
+Обновить существующую базу: выполнить `02_functions.sql` ещё раз (данные не трогаются).

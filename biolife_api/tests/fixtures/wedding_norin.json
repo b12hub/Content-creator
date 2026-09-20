@@ -1,0 +1,120 @@
+{
+    "input": {
+        "date": "2026-10-10",
+        "trend": "wedding trend",
+        "temp_c": 22,
+        "dish_key": "norin"
+    },
+    "dishes": [
+        {
+            "key": "norin",
+            "name_ru": "Нарын",
+            "name_uz": "Norin",
+            "category": "Dough/Noodles",
+            "caloric_density": "High",
+            "recommended_sku": "0.33L Glass",
+            "pairing_mechanics": "Because norin is served cold, the pairing is not a temperature contrast but a salt-and-fat balance: light, clean water softens the saltiness of qazi and pepper and keeps the palate fresh; glass bottle fits festive tables",
+            "physiological_impact": "Horse fat and qazi are rich and salty; black pepper builds thirst; commonly eaten at weddings and morning gatherings in Tashkent",
+            "fat_and_spice_profile": "Very thinly cut boiled dough noodles mixed with finely sliced boiled horse meat and horse sausage (qazi), onion and black pepper; served cold or room temperature, sometimes with hot broth on the side"
+        }
+    ],
+    "season": "Autumn",
+    "warnings": [
+    ],
+    "framework": {
+        "name": "COCA_COLA_EMOTIONAL",
+        "voiceover": {
+            "do": [
+                "Use family words: oila, dasturxon, mehmon, ona, buvi",
+                "Speak about moments, not features",
+                "End with a shared toast of water"
+            ],
+            "dont": [
+                "Hard sell or discount talk",
+                "Fast cuts",
+                "Individualistic 'me-first' framing"
+            ],
+            "music": "Soft dutar / rubab motif or piano; no drops",
+            "voice": "Mature, calm male or female voice; conversational, like a relative speaking at the table",
+            "pace_wpm": 110,
+            "sample_hooks": {
+                "ru": [
+                    "Вся семья за одним дастарханом.",
+                    "Самые тёплые моменты - с самой чистой водой."
+                ],
+                "uz": [
+                    "Butun oila bir dasturxon atrofida.",
+                    "Eng qadrli lahzalar - eng toza suv bilan."
+                ]
+            },
+            "language_priority": [
+                "uz-Latn",
+                "ru"
+            ]
+        },
+        "visual_style": "Golden-hour or warm tungsten light (2700-3200K), soft diffusion, slow dolly-ins and gentle handheld, 24fps, shallow depth of field on hands and faces, long takes (3-5s), steam and candle/fire glow, product appears late (after second 6) and is poured for someone else, never for oneself",
+        "neural_target": "Hippocampus & Prefrontal Cortex (episodic memory, social-reward valuation)",
+        "narrative_tone": "Warm, slow, respectful, multi-generational; the product is a supporting character, family is the hero",
+        "primary_trigger": "Nostalgia, tradition and belonging. BioLife is positioned as the quiet, constant presence at the family dastarkhan - the water that is always on the table when the people you love are together.",
+        "instagram_format": {
+            "cta_style": "soft: 'Share with family' / 'Oilangiz bilan ulashing'",
+            "aspect_ratio": "9:16",
+            "hook_window_s": 3,
+            "reel_length_s": [
+                20,
+                30
+            ],
+            "avg_shot_length_s": 3.5
+        },
+        "selection_rationale": "Weddings are about family honour and tradition; being 'the water on every wedding table' anchors the brand in the most important life events."
+    },
+    "guardrails": [
+        {
+            "note": "Never show alcohol; position BioLife as the table water of choice for halal celebrations."
+        }
+    ],
+    "trend_hook": "wedding trend",
+    "applied_rules": [
+        "trend_hook"
+    ],
+    "month_context": "Teachers' Day (Oct 1), peak wedding season, grape and cotton harvest",
+    "primary_event": {
+        "key": "autumn_weddings",
+        "name_ru": "Свадебный сезон",
+        "name_uz": "To'y mavsumi",
+        "priority": 50,
+        "day_index": 40,
+        "days_total": 91,
+        "window_end": "2026-11-30",
+        "window_start": "2026-09-01",
+        "emotional_state": "Festive joy, family honour, generosity, pride; also fatigue for hosts",
+        "cultural_rituals": [
+            "Nahor oshi (morning wedding osh for men)",
+            "Fotiha to'y (engagement)",
+            "Kelin salom (bride's greeting)",
+            "Evening banquet with norin, salads and shashlik",
+            "Lazgi and andijan polka dances"
+        ],
+        "semiotic_symbols": [
+            "Wedding kazan for 1000 guests",
+            "Karnay and surnay horns",
+            "Bride in white with atlas details",
+            "Laden dastarkhan",
+            "Glass bottles in rows on tables"
+        ],
+        "physiological_state": "Multiple heavy feasts per week (nahor oshi at dawn, evening banquets for 300-1000 guests); little sleep, long hours of dancing, high salt and fat intake"
+    },
+    "fallback_level": "EVENT_MAPPING",
+    "tone_modifiers": [
+        "Open with the trend in the first 2 seconds, then return to the framework story; skip trends that conflict with guardrails"
+    ],
+    "recommended_sku": "0.33L Glass",
+    "visual_modifiers": [
+    ],
+    "all_active_events": [
+        "autumn_weddings",
+        "harvest_period"
+    ],
+    "temperature_source": "live_input",
+    "resolved_temperature_c": 22
+}

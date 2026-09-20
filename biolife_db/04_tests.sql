@@ -123,3 +123,15 @@ SELECT 'mappings', count(*) FROM event_framework_mappings UNION ALL
 SELECT 'dishes', count(*) FROM national_dishes_pairing UNION ALL
 SELECT 'grid_months', count(*) FROM annual_calendar_grid UNION ALL
 SELECT 'rules', count(*) FROM inference_rules;
+
+-- 17. Event window / day index (added for the media planner, Phase 4)
+WITH r AS (SELECT resolve_ad_context('2027-03-01')->'primary_event' j)
+SELECT pg_temp.check('Ramadan 2027-03-01 -> day 22 of 29, priority 100',
+  j->>'key' = 'ramadan' AND (j->>'day_index')::int = 22 AND (j->>'days_total')::int = 29
+  AND (j->>'priority')::int = 100) FROM r;
+SELECT pg_temp.check('New Year wrap window Jan 2 -> started previous Dec 20',
+  resolve_ad_context('2027-01-02')->'primary_event'->>'window_start' = '2026-12-20');
+SELECT pg_temp.check('Winter window in non-leap year clamps Feb 29 -> Feb 28',
+  (SELECT window_end FROM event_window((SELECT id FROM cultural_events_seasons WHERE key='winter_cold_season'), '2027-01-10')) = '2027-02-28');
+SELECT pg_temp.check('Backward compatible: old keys still present',
+  resolve_ad_context('2027-07-15', 43, 'osh', NULL) ?& ARRAY['framework','dishes','recommended_sku','guardrails','primary_event','warnings']);

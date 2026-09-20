@@ -1,6 +1,6 @@
 {
     "input": {
-        "date": "2027-02-20",
+        "date": "2027-03-01",
         "trend": null,
         "temp_c": null,
         "dish_key": null
@@ -40,7 +40,7 @@
             "fat_and_spice_profile": "Layered puff dough brushed with tallow or butter, filled with minced lamb, onion and lamb tail fat, black pepper and cumin; baked on tandir walls, sesame on top"
         }
     ],
-    "season": "Winter",
+    "season": "Spring",
     "warnings": [
         "Lunar event date is an estimate - confirm with the Muslim Board of Uzbekistan before publishing"
     ],
@@ -93,9 +93,6 @@
     },
     "guardrails": [
         {
-            "note": "Do not promote ice-cold drinking in freezing weather; message = daily hydration habit and table water for heavy meals."
-        },
-        {
             "mode": "RELIGIOUS_SENSITIVE",
             "rules": [
                 "Never depict eating or drinking during daylight fasting hours",
@@ -111,11 +108,16 @@
     "applied_rules": [
         "religious_guardrail"
     ],
-    "month_context": "Late winter, preparation for spring, end-of-winter fatigue",
+    "month_context": "Women's Day (Mar 8), Navruz (Mar 21), sumalak, first blossoms",
     "primary_event": {
         "key": "ramadan",
         "name_ru": "Священный месяц Рамадан",
         "name_uz": "Ramazon oyi",
+        "priority": 100,
+        "day_index": 22,
+        "days_total": 29,
+        "window_end": "2027-03-08",
+        "window_start": "2027-02-08",
         "emotional_state": "Spiritual clarity, patience, gratitude, generosity, family unity at iftar",
         "cultural_rituals": [
             "Suhoor (saharlik) before dawn",
@@ -144,8 +146,8 @@
     "all_active_events": [
         "ramadan",
         "spring_preparation",
-        "winter_cold_season"
+        "spring_blossoms"
     ],
     "temperature_source": "monthly_average_max",
-    "resolved_temperature_c": 9.0
+    "resolved_temperature_c": 16.0
 }

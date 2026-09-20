@@ -101,6 +101,11 @@
         "key": "navruz",
         "name_ru": "Навруз",
         "name_uz": "Navro'z",
+        "priority": 90,
+        "day_index": 8,
+        "days_total": 12,
+        "window_end": "2027-03-25",
+        "window_start": "2027-03-14",
         "emotional_state": "Renewal, national pride, communal joy, generosity, reconciliation",
         "cultural_rituals": [
             "Sumalak preparation through the night by women of the mahalla",

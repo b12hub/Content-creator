@@ -2,20 +2,20 @@
     "input": {
         "date": "2027-07-15",
         "trend": null,
-        "temp_c": 43,
-        "dish_key": "osh"
+        "temp_c": 36,
+        "dish_key": "shashlik"
     },
     "dishes": [
         {
-            "key": "osh",
-            "name_ru": "Плов (Ош)",
-            "name_uz": "Osh (Palov)",
-            "category": "Heavy Rice",
-            "caloric_density": "Extremely High",
-            "recommended_sku": "1.5L PET",
-            "pairing_mechanics": "Ice-cold still water (4-6°C) against hot fat creates a strong temperature contrast that rinses the fatty film from the tongue and resets taste between spoonfuls; clean neutral taste does not compete with cumin and carrot sweetness; sipping replaces sugary sodas at the table",
-            "physiological_impact": "Very high fat load coats the palate and slows gastric emptying; salt and cumin raise thirst; post-meal heaviness and drowsiness, especially after midday wedding or Thursday osh",
-            "fat_and_spice_profile": "Rice cooked in rendered lamb tail fat (dumba) and cottonseed oil, lamb or beef, yellow and red carrots, whole garlic heads, chickpeas, cumin (zira), barberry; served from a large kazan"
+            "key": "shashlik",
+            "name_ru": "Шашлык",
+            "name_uz": "Shashlik (Kabob)",
+            "category": "Grilled Meat",
+            "caloric_density": "High",
+            "recommended_sku": "0.5L PET",
+            "pairing_mechanics": "Cold water with a clean, light mineral taste cuts through smoky fat and onion sharpness and refreshes the palate between skewers; bottle condensation next to the grill is a strong visual contrast of fire vs cold",
+            "physiological_impact": "Smoke, salt and pepper dry the mouth; charred fat is rich and heavy; raw onion leaves a sharp aftertaste; eaten outdoors in heat, which adds to thirst",
+            "fat_and_spice_profile": "Lamb, beef or liver on skewers alternating with fat pieces, charcoal smoke, black pepper, cumin, raw onion with vinegar and dill; served with non"
         }
     ],
     "season": "Summer",
@@ -82,6 +82,11 @@
         "key": "chilla_summer",
         "name_ru": "Летняя чилля (40 дней жары)",
         "name_uz": "Saratonda yoz chillasi",
+        "priority": 60,
+        "day_index": 21,
+        "days_total": 42,
+        "window_end": "2027-08-05",
+        "window_start": "2027-06-25",
         "emotional_state": "Physical exhaustion, irritability, desperate craving for cold, relief-seeking; nights become the social time",
         "cultural_rituals": [
             "Staying indoors 12:00-17:00",
@@ -113,5 +118,5 @@
         "summer_season"
     ],
     "temperature_source": "live_input",
-    "resolved_temperature_c": 43
+    "resolved_temperature_c": 36
 }

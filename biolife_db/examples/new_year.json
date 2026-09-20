@@ -1,0 +1,146 @@
+{
+    "input": {
+        "date": "2026-12-31",
+        "trend": null,
+        "temp_c": -2,
+        "dish_key": null
+    },
+    "dishes": [
+        {
+            "key": "osh",
+            "name_ru": "Плов (Ош)",
+            "name_uz": "Osh (Palov)",
+            "category": "Heavy Rice",
+            "caloric_density": "Extremely High",
+            "recommended_sku": "1.5L PET",
+            "pairing_mechanics": "Ice-cold still water (4-6°C) against hot fat creates a strong temperature contrast that rinses the fatty film from the tongue and resets taste between spoonfuls; clean neutral taste does not compete with cumin and carrot sweetness; sipping replaces sugary sodas at the table",
+            "physiological_impact": "Very high fat load coats the palate and slows gastric emptying; salt and cumin raise thirst; post-meal heaviness and drowsiness, especially after midday wedding or Thursday osh",
+            "fat_and_spice_profile": "Rice cooked in rendered lamb tail fat (dumba) and cottonseed oil, lamb or beef, yellow and red carrots, whole garlic heads, chickpeas, cumin (zira), barberry; served from a large kazan"
+        },
+        {
+            "key": "norin",
+            "name_ru": "Нарын",
+            "name_uz": "Norin",
+            "category": "Dough/Noodles",
+            "caloric_density": "High",
+            "recommended_sku": "0.33L Glass",
+            "pairing_mechanics": "Because norin is served cold, the pairing is not a temperature contrast but a salt-and-fat balance: light, clean water softens the saltiness of qazi and pepper and keeps the palate fresh; glass bottle fits festive tables",
+            "physiological_impact": "Horse fat and qazi are rich and salty; black pepper builds thirst; commonly eaten at weddings and morning gatherings in Tashkent",
+            "fat_and_spice_profile": "Very thinly cut boiled dough noodles mixed with finely sliced boiled horse meat and horse sausage (qazi), onion and black pepper; served cold or room temperature, sometimes with hot broth on the side"
+        },
+        {
+            "key": "shashlik",
+            "name_ru": "Шашлык",
+            "name_uz": "Shashlik (Kabob)",
+            "category": "Grilled Meat",
+            "caloric_density": "High",
+            "recommended_sku": "0.5L PET",
+            "pairing_mechanics": "Cold water with a clean, light mineral taste cuts through smoky fat and onion sharpness and refreshes the palate between skewers; bottle condensation next to the grill is a strong visual contrast of fire vs cold",
+            "physiological_impact": "Smoke, salt and pepper dry the mouth; charred fat is rich and heavy; raw onion leaves a sharp aftertaste; eaten outdoors in heat, which adds to thirst",
+            "fat_and_spice_profile": "Lamb, beef or liver on skewers alternating with fat pieces, charcoal smoke, black pepper, cumin, raw onion with vinegar and dill; served with non"
+        }
+    ],
+    "season": "Winter",
+    "warnings": [
+    ],
+    "framework": {
+        "name": "COCA_COLA_EMOTIONAL",
+        "voiceover": {
+            "do": [
+                "Use family words: oila, dasturxon, mehmon, ona, buvi",
+                "Speak about moments, not features",
+                "End with a shared toast of water"
+            ],
+            "dont": [
+                "Hard sell or discount talk",
+                "Fast cuts",
+                "Individualistic 'me-first' framing"
+            ],
+            "music": "Soft dutar / rubab motif or piano; no drops",
+            "voice": "Mature, calm male or female voice; conversational, like a relative speaking at the table",
+            "pace_wpm": 110,
+            "sample_hooks": {
+                "ru": [
+                    "Вся семья за одним дастарханом.",
+                    "Самые тёплые моменты - с самой чистой водой."
+                ],
+                "uz": [
+                    "Butun oila bir dasturxon atrofida.",
+                    "Eng qadrli lahzalar - eng toza suv bilan."
+                ]
+            },
+            "language_priority": [
+                "uz-Latn",
+                "ru"
+            ]
+        },
+        "visual_style": "Golden-hour or warm tungsten light (2700-3200K), soft diffusion, slow dolly-ins and gentle handheld, 24fps, shallow depth of field on hands and faces, long takes (3-5s), steam and candle/fire glow, product appears late (after second 6) and is poured for someone else, never for oneself",
+        "neural_target": "Hippocampus & Prefrontal Cortex (episodic memory, social-reward valuation)",
+        "narrative_tone": "Warm, slow, respectful, multi-generational; the product is a supporting character, family is the hero",
+        "primary_trigger": "Nostalgia, tradition and belonging. BioLife is positioned as the quiet, constant presence at the family dastarkhan - the water that is always on the table when the people you love are together.",
+        "instagram_format": {
+            "cta_style": "soft: 'Share with family' / 'Oilangiz bilan ulashing'",
+            "aspect_ratio": "9:16",
+            "hook_window_s": 3,
+            "reel_length_s": [
+                20,
+                30
+            ],
+            "avg_shot_length_s": 3.5
+        },
+        "selection_rationale": "New Year is the most nostalgic family moment of the year; memory-driven warmth ('the table where everyone is together') drives sharing and saves more than a thirst trigger, which is weak in cold weather."
+    },
+    "guardrails": [
+        {
+            "note": "Present BioLife as the alcohol-free toast; never show alcohol."
+        },
+        {
+            "note": "Do not promote ice-cold drinking in freezing weather; message = daily hydration habit and table water for heavy meals."
+        }
+    ],
+    "trend_hook": null,
+    "applied_rules": [
+        "cold_weather"
+    ],
+    "month_context": "Constitution Day (Dec 8), first cold, New Year preparation",
+    "primary_event": {
+        "key": "new_year",
+        "name_ru": "Новый год",
+        "name_uz": "Yangi yil",
+        "priority": 90,
+        "day_index": 12,
+        "days_total": 15,
+        "window_end": "2027-01-03",
+        "window_start": "2026-12-20",
+        "emotional_state": "Festive joy, family warmth, nostalgia for the passing year, hope, children's excitement",
+        "cultural_rituals": [
+            "Family dastarkhan on Dec 31 with osh and Olivier salad",
+            "Decorated yolka (New Year tree)",
+            "Ded Moroz and Qorbobo visits for children",
+            "Watching the President's address and fireworks",
+            "Visiting relatives on Jan 1"
+        ],
+        "semiotic_symbols": [
+            "Yolka lights",
+            "Snow on mahalla rooftops",
+            "Fireplace/sandal warmth",
+            "Clock striking midnight",
+            "Glass bottle on a festive table"
+        ],
+        "physiological_state": "Cold (-5°C to +5°C), heated dry indoor air, late nights, many heavy festive meals in a row (osh, norin, salads with mayonnaise, meat platters); low daily water intake because thirst is weak in the cold"
+    },
+    "fallback_level": "EVENT_MAPPING",
+    "tone_modifiers": [
+        "Hydration habit, not ice-cold relief"
+    ],
+    "recommended_sku": "1.5L PET",
+    "visual_modifiers": [
+        "No ice cubes; room-temperature pour, warm interiors"
+    ],
+    "all_active_events": [
+        "new_year",
+        "winter_cold_season"
+    ],
+    "temperature_source": "live_input",
+    "resolved_temperature_c": -2
+}

@@ -82,6 +82,11 @@
         "key": "autumn_weddings",
         "name_ru": "Свадебный сезон",
         "name_uz": "To'y mavsumi",
+        "priority": 50,
+        "day_index": 40,
+        "days_total": 91,
+        "window_end": "2026-11-30",
+        "window_start": "2026-09-01",
         "emotional_state": "Festive joy, family honour, generosity, pride; also fatigue for hosts",
         "cultural_rituals": [
             "Nahor oshi (morning wedding osh for men)",

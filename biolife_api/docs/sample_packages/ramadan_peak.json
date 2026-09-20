@@ -1,0 +1,483 @@
+{
+  "package_id": "biolife_20270301_ramadan_coca_cola_emotional_premium",
+  "generated_at": "2026-09-20T14:17:40.788730Z",
+  "context": {
+    "date": "2027-03-01",
+    "event_key": "ramadan",
+    "event_name_ru": "Священный месяц Рамадан",
+    "framework": "COCA_COLA_EMOTIONAL",
+    "temperature_c": 16.0,
+    "temperature_source": "monthly_average_max",
+    "season": "Spring",
+    "sku": "1.5L PET"
+  },
+  "creative": {
+    "strategic_selection": "Демо-ответ без LLM. Блюдо: Шурпа; температура +16°C; угол выбран по фреймворку из базы.",
+    "visual_hook": {
+      "time_range": "0-3s",
+      "shot_type": "макро",
+      "lighting": "естественный свет",
+      "camera_movement": "медленный dolly-in, 24fps",
+      "editor_instructions": "Крупный план: руки бабушки разглаживают дастархан, 24fps, тёплый свет.",
+      "on_screen_text": {
+        "ru": "Помнишь этот стол?",
+        "uz": "Bu dasturxon esingizdami?"
+      }
+    },
+    "script": {
+      "ru": {
+        "voiceover": "Мы снова вместе. Первый стакан BioLife - самому старшему.",
+        "on_screen_text": [
+          "BioLife"
+        ]
+      },
+      "uz": {
+        "voiceover": "Yana birgamiz. BioLife'ning birinchi piyolasi - eng kattamizga.",
+        "on_screen_text": [
+          "BioLife"
+        ]
+      },
+      "audio_cues": [
+        {
+          "timecode": "0.0-3.0s",
+          "kind": "FOLEY",
+          "cue": "Тишина, звук наливаемой воды, тихий смех"
+        },
+        {
+          "timecode": "0.0-15.0s",
+          "kind": "MUSIC",
+          "cue": "Фоновая музыка по брифу"
+        }
+      ]
+    },
+    "call_to_action": {
+      "channel_key": "telegram_bot",
+      "ru": "Закажите BioLife в Telegram-боте BioLife (@BioLifeUz_bot)",
+      "uz": "BioLife'ni BioLife Telegram-boti (@BioLifeUz_bot) orqali buyurtma qiling",
+      "channel_label_ru": "Telegram-бот BioLife (@BioLifeUz_bot)",
+      "channel_label_uz": "BioLife Telegram-boti (@BioLifeUz_bot)",
+      "handle": "@BioLifeUz_bot",
+      "url": "https://t.me/BioLifeUz_bot"
+    }
+  },
+  "quality": {
+    "passed": true,
+    "attempts": 1,
+    "issues_fixed_on_retry": [],
+    "review_required": true,
+    "review_reasons": [
+      "Religious period: a person must approve tone before publishing",
+      "DB warning: Lunar event date is an estimate - confirm with the Muslim Board of Uzbekistan before publishing",
+      "SKU 1.5L PET is not mentioned in viewer text"
+    ]
+  },
+  "generation": {
+    "framework": "COCA_COLA_EMOTIONAL",
+    "handler": "hippocampus_emotional",
+    "llm_provider": "fake",
+    "llm_model": "fake-offline",
+    "sku": "1.5L PET",
+    "event_key": "ramadan",
+    "dish_keys": [
+      "shurva",
+      "osh",
+      "somsa"
+    ]
+  },
+  "media_plan": {
+    "decision": {
+      "tier": "PREMIUM",
+      "fired": [
+        {
+          "rule": "ramadan_month",
+          "tier": "DRIVE",
+          "reason": "Ramadan month: high-volume iftar period"
+        },
+        {
+          "rule": "ramadan_iftar_peak",
+          "tier": "PREMIUM",
+          "reason": "Iftar peak: day 22 of 29 (last 10 days)"
+        }
+      ],
+      "forced_by": null
+    },
+    "tier": {
+      "tier": "PREMIUM",
+      "monthly_budget_uzs": 8000000,
+      "reels_min": 10,
+      "reels_max": null,
+      "production": "Studio production with actors, dynamic editing, separate RU/UZ voiceover sessions",
+      "goal": "Market capture and dominant share of voice across the 6 cities",
+      "campaign_objective": "OUTCOME_TRAFFIC",
+      "optimization_goal": "LINK_CLICKS",
+      "billing_event": "IMPRESSIONS"
+    },
+    "account_currency": "USD",
+    "uzs_per_usd": 11839.59,
+    "fx_rate_date": "2026-09-19",
+    "monthly_budget_uzs": 8000000,
+    "monthly_budget_usd": 675.7,
+    "flight_start": "2027-03-01",
+    "flight_end": "2027-03-08",
+    "flight_days": 8,
+    "flight_budget_uzs": 2105263,
+    "placements": {
+      "publisher_platforms": [
+        "instagram",
+        "facebook",
+        "audience_network"
+      ],
+      "instagram_positions": [
+        "reels"
+      ],
+      "facebook_positions": [
+        "facebook_reels"
+      ],
+      "audience_network_positions": [
+        "classic"
+      ],
+      "device_platforms": [
+        "mobile"
+      ]
+    },
+    "ad_sets": [
+      {
+        "name": "BioLife_PREMIUM_Tashkent_20270301",
+        "cities": [
+          "Ташкент"
+        ],
+        "budget_share": 0.45,
+        "monthly_budget_uzs": 3600000,
+        "daily_budget_uzs": 118421,
+        "daily_budget_usd": 10.0,
+        "budget_type": "LIFETIME",
+        "lifetime_budget_usd": 80.0,
+        "max_cost_per_result_for_learning_usd": 1.4,
+        "creatives": [
+          "RU",
+          "UZ"
+        ],
+        "targeting": {
+          "geo_locations": {
+            "custom_locations": [
+              {
+                "latitude": 41.2995,
+                "longitude": 69.2401,
+                "radius": 25,
+                "distance_unit": "kilometer",
+                "name": "Ташкент"
+              }
+            ],
+            "location_types": [
+              "home",
+              "recent"
+            ]
+          },
+          "age_min": 18,
+          "age_max": 45,
+          "genders": [
+            1,
+            2
+          ],
+          "publisher_platforms": [
+            "instagram",
+            "facebook",
+            "audience_network"
+          ],
+          "instagram_positions": [
+            "reels"
+          ],
+          "facebook_positions": [
+            "facebook_reels"
+          ],
+          "audience_network_positions": [
+            "classic"
+          ],
+          "device_platforms": [
+            "mobile"
+          ]
+        },
+        "adset_schedule": [
+          {
+            "start_minute": 1140,
+            "end_minute": 1440,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          },
+          {
+            "start_minute": 0,
+            "end_minute": 300,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          }
+        ],
+        "pacing_type": [
+          "day_parting"
+        ]
+      },
+      {
+        "name": "BioLife_PREMIUM_FerganaValley_20270301",
+        "cities": [
+          "Наманган",
+          "Андижан",
+          "Фергана"
+        ],
+        "budget_share": 0.3,
+        "monthly_budget_uzs": 2400000,
+        "daily_budget_uzs": 78947,
+        "daily_budget_usd": 6.67,
+        "budget_type": "LIFETIME",
+        "lifetime_budget_usd": 53.36,
+        "max_cost_per_result_for_learning_usd": 0.93,
+        "creatives": [
+          "RU",
+          "UZ"
+        ],
+        "targeting": {
+          "geo_locations": {
+            "custom_locations": [
+              {
+                "latitude": 40.9983,
+                "longitude": 71.6726,
+                "radius": 15,
+                "distance_unit": "kilometer",
+                "name": "Наманган"
+              },
+              {
+                "latitude": 40.7821,
+                "longitude": 72.3442,
+                "radius": 15,
+                "distance_unit": "kilometer",
+                "name": "Андижан"
+              },
+              {
+                "latitude": 40.3864,
+                "longitude": 71.7864,
+                "radius": 15,
+                "distance_unit": "kilometer",
+                "name": "Фергана"
+              }
+            ],
+            "location_types": [
+              "home",
+              "recent"
+            ]
+          },
+          "age_min": 18,
+          "age_max": 45,
+          "genders": [
+            1,
+            2
+          ],
+          "publisher_platforms": [
+            "instagram",
+            "facebook",
+            "audience_network"
+          ],
+          "instagram_positions": [
+            "reels"
+          ],
+          "facebook_positions": [
+            "facebook_reels"
+          ],
+          "audience_network_positions": [
+            "classic"
+          ],
+          "device_platforms": [
+            "mobile"
+          ]
+        },
+        "adset_schedule": [
+          {
+            "start_minute": 1140,
+            "end_minute": 1440,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          },
+          {
+            "start_minute": 0,
+            "end_minute": 300,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          }
+        ],
+        "pacing_type": [
+          "day_parting"
+        ]
+      },
+      {
+        "name": "BioLife_PREMIUM_Samarkand-Bukhara_20270301",
+        "cities": [
+          "Самарканд",
+          "Бухара"
+        ],
+        "budget_share": 0.25,
+        "monthly_budget_uzs": 2000000,
+        "daily_budget_uzs": 65789,
+        "daily_budget_usd": 5.56,
+        "budget_type": "LIFETIME",
+        "lifetime_budget_usd": 44.48,
+        "max_cost_per_result_for_learning_usd": 0.78,
+        "creatives": [
+          "RU",
+          "UZ"
+        ],
+        "targeting": {
+          "geo_locations": {
+            "custom_locations": [
+              {
+                "latitude": 39.6542,
+                "longitude": 66.9597,
+                "radius": 15,
+                "distance_unit": "kilometer",
+                "name": "Самарканд"
+              },
+              {
+                "latitude": 39.7747,
+                "longitude": 64.4286,
+                "radius": 15,
+                "distance_unit": "kilometer",
+                "name": "Бухара"
+              }
+            ],
+            "location_types": [
+              "home",
+              "recent"
+            ]
+          },
+          "age_min": 18,
+          "age_max": 45,
+          "genders": [
+            1,
+            2
+          ],
+          "publisher_platforms": [
+            "instagram",
+            "facebook",
+            "audience_network"
+          ],
+          "instagram_positions": [
+            "reels"
+          ],
+          "facebook_positions": [
+            "facebook_reels"
+          ],
+          "audience_network_positions": [
+            "classic"
+          ],
+          "device_platforms": [
+            "mobile"
+          ]
+        },
+        "adset_schedule": [
+          {
+            "start_minute": 1140,
+            "end_minute": 1440,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          },
+          {
+            "start_minute": 0,
+            "end_minute": 300,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "timezone_type": "ADVERTISER"
+          }
+        ],
+        "pacing_type": [
+          "day_parting"
+        ]
+      }
+    ],
+    "interest_queries": [
+      "Uzbek cuisine",
+      "Pilaf",
+      "Food delivery",
+      "Online food ordering",
+      "Grocery delivery",
+      "Yandex Go",
+      "Express24",
+      "Physical fitness",
+      "Outdoor recreation",
+      "Family",
+      "Home cooking",
+      "Weddings",
+      "Parenting",
+      "Soup",
+      "Samsa"
+    ],
+    "measurement": {
+      "primary_kpi": "Cost per link click → bot start",
+      "tracking": [
+        "UTM tags on every link: utm_source=meta&utm_medium=paid&utm_campaign=<package_id>",
+        "Telegram deep link per ad set: t.me/<bot>?start=<adset_code> to count bot starts"
+      ],
+      "prerequisites": [
+        "Ad account timezone = Asia/Tashkent (ad scheduling uses ADVERTISER time)",
+        "Ad account currency = USD (UZS is not supported by Meta)",
+        "To unlock conversion optimization: send bot orders to Meta via Conversions API (action_source='chat') from the Telegram bot backend, then set the flag to true"
+      ]
+    },
+    "warnings": [
+      "PREMIUM wants conversion optimization, but no Pixel/Conversions API dataset is configured (BIOLIFE_META_CONVERSION_TRACKING_READY=false). Falling back to OUTCOME_TRAFFIC / LINK_CLICKS until tracking is live.",
+      "Audience Network requires Facebook placements (Meta rule), so Facebook Reels is included. Set BIOLIFE_INCLUDE_AUDIENCE_NETWORK=false for Instagram Reels only.",
+      "Ramadan: ads run 19:00-05:00 only (after iftar, before suhoor) with a lifetime budget. Verify against the month's latest iftar and earliest suhoor in Tashkent before launch.",
+      "Learning phase check: at this budget an ad set needs a cost per LINK_CLICKS ≤ $0.78 to reach ~50 events/week. Compare with your real CPC after 3-4 days; if higher, merge ad sets.",
+      "Temperature is a monthly average, not live data - pass a live reading to resolve_ad_context() so heatwave triggers work."
+    ]
+  },
+  "ready_to_launch": false,
+  "blockers": [
+    "Review: Religious period: a person must approve tone before publishing",
+    "Review: DB warning: Lunar event date is an estimate - confirm with the Muslim Board of Uzbekistan before publishing",
+    "Review: SKU 1.5L PET is not mentioned in viewer text",
+    "Media: PREMIUM wants conversion optimization, but no Pixel/Conversions API dataset is configured (BIOLIFE_META_CONVERSION_TRACKING_READY=false). Falling back to OUTCOME_TRAFFIC / LINK_CLICKS until tracking is live."
+  ]
+}
