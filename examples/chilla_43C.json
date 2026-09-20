@@ -1,0 +1,117 @@
+{
+    "input": {
+        "date": "2027-07-15",
+        "trend": null,
+        "temp_c": 43,
+        "dish_key": "osh"
+    },
+    "dishes": [
+        {
+            "key": "osh",
+            "name_ru": "Плов (Ош)",
+            "name_uz": "Osh (Palov)",
+            "category": "Heavy Rice",
+            "caloric_density": "Extremely High",
+            "recommended_sku": "1.5L PET",
+            "pairing_mechanics": "Ice-cold still water (4-6°C) against hot fat creates a strong temperature contrast that rinses the fatty film from the tongue and resets taste between spoonfuls; clean neutral taste does not compete with cumin and carrot sweetness; sipping replaces sugary sodas at the table",
+            "physiological_impact": "Very high fat load coats the palate and slows gastric emptying; salt and cumin raise thirst; post-meal heaviness and drowsiness, especially after midday wedding or Thursday osh",
+            "fat_and_spice_profile": "Rice cooked in rendered lamb tail fat (dumba) and cottonseed oil, lamb or beef, yellow and red carrots, whole garlic heads, chickpeas, cumin (zira), barberry; served from a large kazan"
+        }
+    ],
+    "season": "Summer",
+    "warnings": [
+    ],
+    "framework": {
+        "name": "PEPSI_BEHAVIORAL_DOPAMINE",
+        "voiceover": {
+            "do": [
+                "Lead with the sound of the cap or ice",
+                "Show temperature numbers (+43°C) on screen",
+                "One benefit per clip"
+            ],
+            "dont": [
+                "Slow openings",
+                "More than 12 words of on-screen text",
+                "Showing drinking during Ramadan fasting hours"
+            ],
+            "music": "Upbeat Uzbek pop / trap beat with a hard drop on the first sip",
+            "voice": "Young, energetic; or no voiceover and ASMR sound design only (bottle cap click, ice, pour, exhale)",
+            "pace_wpm": 160,
+            "sample_hooks": {
+                "ru": [
+                    "+43°C. Один глоток - и всё меняется.",
+                    "Жара? Ледяной BioLife."
+                ],
+                "uz": [
+                    "+43°C. Bitta qultum - va hammasi o'zgaradi.",
+                    "Issiqqa qarshi - muzdek BioLife."
+                ]
+            },
+            "language_priority": [
+                "uz-Latn",
+                "ru"
+            ]
+        },
+        "visual_style": "High-key hard sunlight, heat-haze shimmer, macro shots of condensation droplets running down the bottle, ice cracking, 120fps slow-motion pour intercut with fast 0.5-1s cuts, whip pans, cold blue-teal grade on the product vs warm orange grade on the environment, product visible in the first 1.5 seconds",
+        "neural_target": "Dopamine reward pathway (ventral striatum) & gustatory / insular cortex (temperature and thirst signals)",
+        "narrative_tone": "Energetic, punchy, youthful, sensory; short sentences, onomatopoeia (pshhh, click, glug)",
+        "primary_trigger": "Instant refreshment through contrast: heat vs ice, heavy vs light, thirst vs relief. The viewer should almost physically feel the first cold sip.",
+        "instagram_format": {
+            "cta_style": "direct: 'Grab one cold' / 'Muzdekini oling'",
+            "aspect_ratio": "9:16",
+            "hook_window_s": 1.5,
+            "reel_length_s": [
+                7,
+                15
+            ],
+            "avg_shot_length_s": 0.8
+        },
+        "selection_rationale": "Live temperature ≥35°C: thirst drive dominates, refreshment contrast converts best."
+    },
+    "guardrails": [
+        {
+            "note": "Encourage regular drinking; do not frame heat as fun for vulnerable groups (elders, babies)."
+        }
+    ],
+    "trend_hook": null,
+    "applied_rules": [
+        "heat_extreme"
+    ],
+    "month_context": "Peak Chilla heat, peak ice-water demand, late-night gatherings",
+    "primary_event": {
+        "key": "chilla_summer",
+        "name_ru": "Летняя чилля (40 дней жары)",
+        "name_uz": "Saratonda yoz chillasi",
+        "emotional_state": "Physical exhaustion, irritability, desperate craving for cold, relief-seeking; nights become the social time",
+        "cultural_rituals": [
+            "Staying indoors 12:00-17:00",
+            "Sleeping on tapchans in the courtyard at night",
+            "Watering courtyards to cool them",
+            "Late-night street food and family walks after 21:00",
+            "Cold dishes (okroshka, chalop) and watermelon"
+        ],
+        "semiotic_symbols": [
+            "Thermometer at +43°C",
+            "Melting ice",
+            "Sun-bleached streets",
+            "Wet courtyard floor",
+            "Ice cracking in water"
+        ],
+        "physiological_state": "Extreme thermal stress +40°C to +45°C (up to +47°C in Termez); rapid fluid and salt loss, headaches, heat exhaustion risk, loss of appetite in daytime"
+    },
+    "fallback_level": "RULE_OVERRIDE",
+    "tone_modifiers": [
+        "Mention the live temperature on screen"
+    ],
+    "recommended_sku": "0.5L PET",
+    "visual_modifiers": [
+        "Heat haze + macro condensation in first 1.5s"
+    ],
+    "all_active_events": [
+        "chilla_summer",
+        "street_food_nights",
+        "summer_season"
+    ],
+    "temperature_source": "live_input",
+    "resolved_temperature_c": 43
+}

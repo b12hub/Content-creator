@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "biolife/runtime_contract",
+  "title": "BioLife AI copywriter - runtime input and output contract",
+  "description": "Input: what the ad generator sends to biolife.resolve_ad_context(). Output: the creative brief JSON returned. Examples in /examples.",
+  "$defs": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "date":     {"type": "string", "format": "date", "description": "Publish date; defaults to today"},
+        "temp_c":   {"type": ["number", "null"], "minimum": -30, "maximum": 55, "description": "Live outdoor temperature from a weather API; null -> monthly average max"},
+        "dish_key": {"type": ["string", "null"], "pattern": "^[a-z0-9_]+$", "description": "User-selected dish key (osh, shashlik, somsa, kazan_kabob, lagmon, manti, norin, sumalak, shurva)"},
+        "trend":    {"type": ["string", "null"], "maxLength": 200, "description": "Emerging social trend to use as the opening hook"}
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "required": ["framework", "fallback_level", "dishes", "recommended_sku", "guardrails", "applied_rules", "warnings"],
+      "properties": {
+        "resolved_temperature_c": {"type": ["number", "null"]},
+        "temperature_source": {"enum": ["live_input", "monthly_average_max"]},
+        "season": {"enum": ["Spring", "Summer", "Autumn", "Winter"]},
+        "month_context": {"type": "string"},
+        "primary_event": {"type": ["object", "null"]},
+        "all_active_events": {"type": "array", "items": {"type": "string"}},
+        "framework": {
+          "type": "object",
+          "required": ["name", "narrative_tone", "visual_style", "voiceover"],
+          "properties": {"name": {"enum": ["COCA_COLA_EMOTIONAL", "PEPSI_BEHAVIORAL_DOPAMINE", "HYBRID_SPRING_RENEWAL"]}}
+        },
+        "fallback_level": {"enum": ["EVENT_MAPPING", "MONTH_GRID", "GLOBAL_DEFAULT", "RULE_OVERRIDE"]},
+        "tone_modifiers": {"type": "array"},
+        "visual_modifiers": {"type": "array"},
+        "dishes": {"type": "array", "minItems": 1},
+        "recommended_sku": {"enum": ["0.33L Glass", "0.5L PET", "1.5L PET", "5L/10L Family Pack"]},
+        "trend_hook": {"type": ["string", "null"]},
+        "guardrails": {"type": "array", "description": "HARD rules - the LLM must obey these over everything else"},
+        "applied_rules": {"type": "array", "items": {"type": "string"}},
+        "warnings": {"type": "array", "items": {"type": "string"}, "description": "Show to a human before publishing"}
+      }
+    }
+  }
+}
