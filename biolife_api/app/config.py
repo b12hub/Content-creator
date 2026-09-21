@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     include_audience_network: bool = True     # Meta rule: AN requires Facebook placements too
     meta_conversion_tracking_ready: bool = False   # True only after Pixel/Conversions API dataset is live
     meta_pixel_id: str | None = None
+
+    # ---- Telegram bot (aiogram 3.x over FastAPI webhook) ------------------------
+    telegram_bot_token: SecretStr | None = None          # BIOLIFE_TELEGRAM_BOT_TOKEN
+    telegram_webhook_secret: SecretStr | None = None     # any random 1-256 char string [A-Za-z0-9_-]
+    telegram_webhook_base_url: str = ""                  # https://api.biolife.uz  (must be HTTPS)
+    telegram_webhook_path: str = "/telegram/webhook"
+    telegram_drop_pending_updates: bool = True
+    telegram_delete_webhook_on_shutdown: bool = False    # True only for local/dev tunnels
+    telegram_max_connections: int = 40
+    telegram_min_interval_s: float = 0.4                 # per-user throttle
+    # Internal bot: Telegram user ids of the marketing team. Empty = everyone (dev only).
+    telegram_allowed_user_ids: list[int] = []
 
 
 @lru_cache

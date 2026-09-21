@@ -32,3 +32,12 @@ def make_client():
 @pytest.fixture
 def good():
     return default_payload("", "")
+
+
+@pytest.fixture(scope="session")
+def tg_dispatcher():
+    """One Dispatcher for the whole test session: aiogram attaches a router to one dispatcher only.
+    Throttling is disabled so tests can feed updates back to back."""
+    from app.config import get_settings
+    from app.telegram.bot import build_dispatcher
+    return build_dispatcher(get_settings().model_copy(update={"telegram_min_interval_s": 0.0}))

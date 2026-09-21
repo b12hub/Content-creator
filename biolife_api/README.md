@@ -78,3 +78,32 @@ Event-driven tiers end with the event (e.g. Ramadan); weather/launch tiers run 3
 
 DB note: the planner uses `primary_event.priority/day_index/days_total/window_*`, added to
 `resolve_ad_context()` in biolife_db v1.1 (additive; older payloads still validate).
+
+## Telegram bot — internal AI copywriter (aiogram 3.x, webhook)
+Internal tool for the BioLife marketing team. No shop, no FSM, no customer flows.
+All bot copy is Uzbek (Latin); only the generated script itself is bilingual RU/UZ.
+
+| File | Role |
+|---|---|
+| `app/telegram/handlers.py` | `/start`, `/create`, `/help`, fallback, error trap |
+| `app/telegram/services.py` | `fetch_templates_from_db()`, `generate_llm_script()`, date/season helpers |
+| `app/telegram/texts.py` | All Uzbek copy, month and season names |
+| `app/telegram/bot.py` | Bot + Dispatcher, commands, access control, webhook registration |
+| `app/routers/telegram.py` | FastAPI webhook receiver (unchanged) |
+| `app/telegram/middlewares.py` | Access allowlist, duplicate protection, throttling, logging |
+
+`/create` flow: answer `O‘ylayapman... ⏳` at once → read today's date, month and season in Tashkent
+time → `fetch_templates_from_db()` → `generate_llm_script(season, templates)` (90 s timeout) →
+**edit** the same message with the script. Long scripts continue as follow-up messages (4096-char limit).
+
+```bash
+export BIOLIFE_TELEGRAM_BOT_TOKEN=... BIOLIFE_TELEGRAM_WEBHOOK_SECRET=...        BIOLIFE_TELEGRAM_WEBHOOK_BASE_URL=https://api.biolife.uz        BIOLIFE_TELEGRAM_ALLOWED_USER_IDS='[111111111,222222222]'
+uvicorn app.main:app
+```
+
+### Notes
+- **Set the allowlist.** With `BIOLIFE_TELEGRAM_ALLOWED_USER_IDS` empty any Telegram user can
+  generate scripts; the app logs a warning at startup.
+- The bot keeps no per-user state, so it runs fine with several uvicorn workers.
+- Only `message` updates are subscribed; one `/create` per user at a time.
+- Date and season use Asia/Tashkent (+05:00), with a fallback offset when the image has no tzdata.
