@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     # Optional override for the Telegram copywriter (plain text, no JSON schema). Leave empty to
     # reuse anthropic_model. Structured-output endpoints need Sonnet 4.5+/Opus 4.5+/Haiku 4.5, but
     # free text works on older models too, e.g. claude-3-5-sonnet-20240620.
-    telegram_llm_model: str = ""
+    # The bot uses plain-text calls, so an older model works; the JSON endpoints keep
+    # anthropic_model, which must support structured outputs (Sonnet 4.5+/Opus 4.5+/Haiku 4.5).
+    telegram_llm_model: str = "claude-3-5-sonnet-20240620"
     telegram_llm_max_tokens: int = 2000
 
     # ---- OpenRouter fallback (used when Anthropic fails) -----------------------
@@ -44,7 +46,7 @@ class Settings(BaseSettings):
         default=None, validation_alias=AliasChoices("BIOLIFE_OPENROUTER_API_KEY", "OPENROUTER_API_KEY"))
     # NOTE: verify the slug against https://openrouter.ai/api/v1/models - the catalogue changes and
     # a wrong id fails with 404 on the first fallback.
-    openrouter_fallback_model: str = "nvidia/nemotron-3-ultra:free"
+    openrouter_fallback_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_timeout_s: float = 60.0
     openrouter_referer: str = "https://biolife.uz"      # app attribution (required for rankings)
@@ -100,6 +102,20 @@ class Settings(BaseSettings):
     telegram_min_interval_s: float = 0.4                 # per-user throttle
     # Internal bot: Telegram user ids of the marketing team. Empty = everyone (dev only).
     telegram_allowed_user_ids: list[int] = []
+
+    # ---- PostgreSQL (asyncpg) ---------------------------------------------------
+    database_url: str = Field(
+        default="", validation_alias=AliasChoices("BIOLIFE_DATABASE_URL", "DATABASE_URL"))
+    db_pool_min_size: int = 1
+    db_pool_max_size: int = 5
+    db_command_timeout_s: float = 10.0
+    saved_scripts_table: str = "biolife.saved_scripts"
+    few_shot_limit: int = 3              # how many saved scripts are shown to the model
+    few_shot_max_chars: int = 1500       # each example is trimmed to this, to bound the prompt
+
+    # ---- Redis (FSM storage) ----------------------------------------------------
+    redis_url: str = Field(
+        default="", validation_alias=AliasChoices("BIOLIFE_REDIS_URL", "REDIS_URL"))
 
     # ---- validation & derived values -------------------------------------------
     @field_validator("telegram_webhook_path", mode="before")

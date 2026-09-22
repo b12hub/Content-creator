@@ -7,17 +7,20 @@ from __future__ import annotations
 
 import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.middleware import FSMContextMiddleware
+from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage
+from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import BotCommand
 
 from app.config import Settings
+from app.db import Database
 from app.llm.base import LLMClient
 from app.telegram.handlers import router
 from app.telegram.middlewares import (
-    AccessMiddleware, DedupeMiddleware, LoggingMiddleware, ThrottleMiddleware,
+    AccessMiddleware, BusyMiddleware, DedupeMiddleware, LoggingMiddleware, ThrottleMiddleware,
 )
 
 log = logging.getLogger("biolife.telegram.bot")
@@ -30,8 +33,48 @@ COMMANDS: list[BotCommand] = [
 ]
 
 
+def register_before_fsm(dp: Dispatcher, middleware: BaseMiddleware) -> None:
+    """Append an outer middleware, but ahead of aiogram's FSM middleware (and its isolation lock).
+
+    Falls back to a normal registration if aiogram ever changes that internal list."""
+    try:
+        chain = dp.update.outer_middleware._middlewares      # noqa: SLF001 - documented fallback
+        index = next(i for i, mw in enumerate(chain) if isinstance(mw, FSMContextMiddleware))
+        chain.insert(index, middleware)
+    except (AttributeError, StopIteration):                  # pragma: no cover - version drift
+        log.warning("could not place %s before the FSM middleware; registering normally",
+                    type(middleware).__name__)
+        dp.update.outer_middleware(middleware)
+
+
 class TelegramNotConfigured(RuntimeError):
     """Raised when bot endpoints are used without BIOLIFE_TELEGRAM_BOT_TOKEN."""
+
+
+def build_storage(settings: Settings) -> BaseStorage:
+    """Redis keeps the active script across restarts and across uvicorn workers; MemoryStorage
+    loses it on every restart and is not shared between processes."""
+    if settings.redis_url:
+        from aiogram.fsm.storage.redis import RedisStorage
+        log.info("FSM storage: Redis")
+        return RedisStorage.from_url(settings.redis_url)
+    log.warning("BIOLIFE_REDIS_URL is empty - FSM storage is in-memory: the active script is lost "
+                "on restart and is not shared between workers")
+    return MemoryStorage()
+
+
+def build_isolation(settings: Settings, storage: BaseStorage | None = None) -> BaseEventIsolation:
+    """One user's updates must not run concurrently: FSM data is read-modify-write.
+
+    The isolation REUSES the storage's Redis client. RedisEventIsolation.from_url() would build a
+    second connection pool, and aiogram's RedisEventIsolation.close() is a no-op - so that second
+    pool could never be released at shutdown."""
+    if not settings.redis_url:
+        return SimpleEventIsolation()
+    from aiogram.fsm.storage.redis import RedisEventIsolation, RedisStorage
+    if isinstance(storage, RedisStorage):
+        return RedisEventIsolation(redis=storage.redis)
+    return RedisEventIsolation.from_url(settings.redis_url)
 
 
 def build_bot(settings: Settings) -> Bot:
@@ -41,18 +84,27 @@ def build_bot(settings: Settings) -> Bot:
                default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
-def build_dispatcher(settings: Settings, llm: "LLMClient | None" = None) -> Dispatcher:
-    # FSM keeps the active script and the edit mode. MemoryStorage is per-process: with several
-    # uvicorn workers a user can land on a worker that does not know their script.
-    dp = Dispatcher(storage=MemoryStorage(), llm=llm, settings=settings)   # injected into handlers
+def build_dispatcher(settings: Settings, llm: "LLMClient | None" = None,
+                     db: "Database | None" = None) -> Dispatcher:
+    # FSM keeps the active script and the edit mode.
+    storage = build_storage(settings)
+    dp = Dispatcher(storage=storage, events_isolation=build_isolation(settings, storage),
+                    llm=llm, settings=settings, db=db)        # injected into every handler
     # outer middlewares run before filters, so duplicates and floods never reach a handler
-    dp.update.outer_middleware(DedupeMiddleware())
-    dp.update.outer_middleware(ThrottleMiddleware(settings.telegram_min_interval_s))
+    # Order matters. aiogram registers its FSM middleware (which takes the per-user isolation
+    # lock) in Dispatcher.__init__, so anything appended later runs AFTER that lock. A second
+    # message from a busy user would then WAIT for the running generation instead of being
+    # refused - and start a second paid call as soon as the lock is released. These guards are
+    # therefore inserted before the FSM middleware, but after UserContextMiddleware, which is
+    # what fills event_from_user.
+    register_before_fsm(dp, DedupeMiddleware())
+    register_before_fsm(dp, ThrottleMiddleware(settings.telegram_min_interval_s))
     allowed = frozenset(settings.telegram_allowed_user_ids)
     if not allowed:
         log.warning("BIOLIFE_TELEGRAM_ALLOWED_USER_IDS is empty - ANY Telegram user can generate "
                     "scripts with this internal bot. Set the marketing team's user ids.")
-    dp.update.outer_middleware(AccessMiddleware(allowed))
+    register_before_fsm(dp, AccessMiddleware(allowed))
+    register_before_fsm(dp, BusyMiddleware())
     dp.message.middleware(LoggingMiddleware())
     dp.callback_query.middleware(LoggingMiddleware())
     dp.include_router(router)

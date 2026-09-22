@@ -154,3 +154,71 @@ Without the key the bot behaves exactly as before (no wrapper, original errors).
 - **The default slug `nvidia/nemotron-3-ultra:free` is not in OpenRouter's catalogue today.**
   Pick a current id from `https://openrouter.ai/api/v1/models`; the app checks the id at startup
   in the background and logs an error if it is unknown.
+
+---
+
+## Phase 12: memory — PostgreSQL corpus + Redis FSM
+
+The bot now improves with use. Three moving parts, all optional and all fail-soft.
+
+### 1. The 💾 button (`btn_save_final`)
+
+Every answer carries three buttons: 🎬 video prompt · ✏️ edit · 💾 **Tasdiqlash va Saqlash**.
+💾 writes the brief + script to `biolife.saved_scripts`. The last `BIOLIFE_FEW_SHOT_LIMIT` (3)
+approved scripts are then appended to the system prompt of every later generation and revision,
+under the Uzbek header `### O'tmishdagi muvaffaqiyatli misollar (Shu uslubga taqlid qiling):`.
+
+This is **in-context (few-shot) learning, not fine-tuning**: nothing is trained, the examples are
+re-sent with each call. Concretely that means the team's taste takes effect immediately, but it
+is also paid for on every call — which is why both the brief (300 chars) and the script
+(`BIOLIFE_FEW_SHOT_MAX_CHARS`, 1500) are trimmed.
+
+### 2. Brand guidelines from the database
+
+`biolife.resolve_ad_context()` (Phase 1) supplies season, event, tone, SKU and dish. The raw JSON
+is ~1400 tokens; `format_templates()` compacts it to one ~40-token line. Without a database the
+bot uses the static `BASELINE_TEMPLATES` — exactly as before Phase 12.
+
+### 3. Redis FSM
+
+`BIOLIFE_REDIS_URL` moves the active script and the edit state out of process memory. Without it,
+a restart makes 💾 answer "no active script" for every message already in the chat.
+
+### Setup
+
+```bash
+psql "$BIOLIFE_DATABASE_URL" -f ../biolife_db/05_saved_scripts.sql    # once
+pip install -r requirements.txt                                       # adds asyncpg, redis
+# set BIOLIFE_DATABASE_URL and BIOLIFE_REDIS_URL in .env (see .env.example)
+curl -s localhost:8000/health | jq
+# {"status":"ok","database":true,"saved_scripts_table":true,"ad_context_function":true,...}
+```
+
+`/health` reports `"degraded"` when something is **configured but broken** — a DSN that does not
+connect, a missing `saved_scripts` table, a webhook that failed to register. Running with no
+database at all is a supported mode and stays `"ok"`.
+
+### Deliberate limits
+
+- **Run ONE uvicorn worker.** The busy lock, the dedupe cache and the throttle live in module
+  globals (`app/telegram/busy.py`), so they are per-process. Redis shares the *state* between
+  workers; it does not share these guards. With two workers, two taps can both start a paid call.
+- **The database is never a hard dependency.** Every query catches `DB_ERRORS` (`app/db.py`) —
+  which deliberately includes `asyncpg.InterfaceError`, `asyncio.TimeoutError`, `OSError` and
+  `ValueError`, not just `PostgresError`, because a typo'd DSN raises `ClientConfigurationError`
+  and `command_timeout` raises `asyncio.TimeoutError`. A database outage degrades the copy; it
+  never takes the API down.
+- **The two DB round trips run concurrently** (`asyncio.gather`), so they cannot eat into the
+  generation budget (45s primary + 60s fallback < 120s).
+- **`BIOLIFE_SAVED_SCRIPTS_TABLE` is interpolated into SQL** (asyncpg cannot parameterise an
+  identifier). It is validated as a plain `[schema.]table` name at startup and refused otherwise.
+  Keep it an operator-set value; never source it from user input.
+- **Duplicate saves are impossible**: a unique index on `(telegram_user_id, md5(script))` plus
+  `ON CONFLICT DO NOTHING`, so a second 💾 tap after a restart cannot fill two of the three
+  few-shot slots with the same script.
+
+### Tests
+
+`tests/test_db_learning.py` (37) and `tests/test_telegram_learning.py` (17) cover the corpus, the
+prompt assembly, the 💾 handler paths, the middleware ordering and — importantly — every failure
+class asyncpg actually raises, including the ones that are *not* `PostgresError`.

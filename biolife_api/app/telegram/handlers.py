@@ -16,6 +16,7 @@ import asyncio
 import html
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Final
 
 from aiogram import F, Router
@@ -25,12 +26,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, ErrorEvent, InlineKeyboardMarkup, Message
 
 from app.config import Settings
+from app.db import Database
 from app.llm.base import LLMClient, LLMError
 from app.llm.fallback import GenerationResult
 from app.telegram import texts
-from app.telegram.keyboards import CB_EDIT_SCRIPT, CB_VIDEO_PROMPT, script_actions_keyboard
+from app.telegram.keyboards import (
+    CB_EDIT_SCRIPT, CB_SAVE_FINAL, CB_VIDEO_PROMPT, script_actions_keyboard,
+)
 from app.telegram.services import DateContext, generate_script, generate_video_prompt, revise_script
-from app.telegram.states import KEY_BRIEF, KEY_SCRIPT, ContentStates
+from app.telegram.states import KEY_BRIEF, KEY_SAVED, KEY_SCRIPT, ContentStates
 
 log = logging.getLogger("biolife.telegram.handlers")
 router = Router(name="biolife-copywriter")
@@ -43,23 +47,11 @@ TELEGRAM_LIMIT: Final[int] = 4096
 GENERATION_TIMEOUT_S: Final[float] = 120.0
 MAX_BRIEF_CHARS: Final[int] = 2000
 
-# One generation per user at a time: double taps would queue duplicate (paid) LLM calls.
-_running: set[int] = set()
-
 
 def llm_options(settings: Settings) -> dict[str, object]:
     """BIOLIFE_TELEGRAM_LLM_MODEL lets the bot use a different (e.g. cheaper or older) model than
     the JSON endpoints, which require a structured-output capable model."""
     return {"model": settings.telegram_llm_model or None, "max_tokens": settings.telegram_llm_max_tokens}
-
-
-def acquire(user_id: int) -> bool:
-    """Claim the slot without awaiting in between: the webhook processes updates concurrently,
-    so a check-then-await-then-add sequence would let two requests through."""
-    if user_id in _running:
-        return False
-    _running.add(user_id)
-    return True
 
 
 # ------------------------------------------------------------------ formatting
@@ -132,6 +124,14 @@ async def deliver(placeholder: Message, text: str, markup: InlineKeyboardMarkup 
         except TelegramBadRequest as exc:
             log.warning("HTML rejected (%s); resending as plain text", exc.message)
             await placeholder.answer(chunk, reply_markup=reply_markup, parse_mode=None)
+        except TelegramAPIError as exc:
+            # 429 / network: the script is already in the FSM, so say what happened instead of
+            # dropping the marketer into the generic error handler with no buttons.
+            log.warning("chunk %d/%d not delivered (%s)", index + 1, len(chunks), exc)
+            if is_last and markup is not None:
+                with suppress(TelegramAPIError):
+                    await placeholder.answer(texts.PARTIAL_DELIVERY, reply_markup=markup)
+            return
 
 
 async def fail(placeholder: Message, reason: str) -> None:
@@ -165,12 +165,15 @@ async def run_generation(placeholder: Message, user_id: int, coro, state: FSMCon
 
     # Store BEFORE delivering: if sending fails, the buttons must still find the script.
     if store_script and state is not None:
-        await state.update_data({KEY_SCRIPT: text, **({KEY_BRIEF: brief} if brief else {})})
+        # KEY_BRIEF is written unconditionally, including None. Writing it only for a custom
+        # brief used to leave the PREVIOUS brief in the FSM, so a later /create saved a default
+        # script paired with someone else's brief - and every future generation learned that pair.
+        await state.update_data({KEY_SCRIPT: text, KEY_SAVED: False, KEY_BRIEF: brief})
     await deliver(placeholder, text, script_actions_keyboard() if keyboard else None,
                   render=as_html if store_script else as_copy_block)
     if degraded:
         # The marketer must know the text came from the backup model, whose Uzbek is weaker.
-        await placeholder.answer(texts.FALLBACK_NOTICE.format(model=html.escape(result.model)))
+        await placeholder.answer(texts.FALLBACK_NOTICE)
 
 
 # --------------------------------------------------------------------- commands
@@ -193,26 +196,20 @@ async def cancel_command(message: Message, state: FSMContext) -> None:
 
 @router.message(Command("create"))
 async def create_command(message: Message, state: FSMContext, llm: LLMClient,
-                         settings: Settings) -> None:
+                         settings: Settings, db: Database | None = None) -> None:
     """Today's default campaign: date, month and season are resolved automatically."""
     user_id = message.from_user.id
     await state.set_state(None)                       # /create always leaves the edit mode
-    if not acquire(user_id):
-        await message.answer(texts.BUSY)
-        return
-    try:
-        placeholder = await message.answer(texts.THINKING)
-        log.info("default script user_id=%s context=%s", user_id, DateContext.now().as_text())
-        await run_generation(placeholder, user_id, generate_script(llm, **llm_options(settings)), state,
-                             keyboard=True, store_script=True)
-    finally:
-        _running.discard(user_id)
+    placeholder = await message.answer(texts.THINKING)
+    log.info("default script user_id=%s context=%s", user_id, DateContext.now().as_text())
+    await run_generation(placeholder, user_id, generate_script(llm, db=db, **llm_options(settings)),
+                         state, keyboard=True, store_script=True)
 
 
 # ------------------------------------------------------- free-form brief (text)
 @router.message(ContentStates.waiting_for_script_edits, F.text)
 async def receive_edits(message: Message, state: FSMContext, llm: LLMClient,
-                        settings: Settings) -> None:
+                        settings: Settings, db: Database | None = None) -> None:
     """Edit feedback for the active script."""
     user_id = message.from_user.id
     data = await state.get_data()
@@ -221,16 +218,11 @@ async def receive_edits(message: Message, state: FSMContext, llm: LLMClient,
         await state.set_state(None)
         await message.answer(texts.NO_ACTIVE_SCRIPT)
         return
-    if not acquire(user_id):
-        await message.answer(texts.BUSY)
-        return
-    try:
-        placeholder = await message.answer(texts.THINKING_EDIT)
-        await state.set_state(None)
-        await run_generation(placeholder, user_id, revise_script(llm, script, message.text, **llm_options(settings)), state,
-                             keyboard=True, store_script=True)
-    finally:
-        _running.discard(user_id)
+    placeholder = await message.answer(texts.THINKING_EDIT)
+    await state.set_state(None)
+    await run_generation(placeholder, user_id,
+                         revise_script(llm, script, message.text, db=db, **llm_options(settings)),
+                         state, keyboard=True, store_script=True)
 
 
 @router.message(F.text.startswith("/"))
@@ -241,23 +233,18 @@ async def unknown_command(message: Message) -> None:
 
 @router.message(F.text)
 async def free_form_brief(message: Message, state: FSMContext, llm: LLMClient,
-                          settings: Settings) -> None:
+                          settings: Settings, db: Database | None = None) -> None:
     """Any other text is treated as a brief and goes straight to the LLM."""
     user_id = message.from_user.id
     brief = (message.text or "").strip()
     if len(brief) > MAX_BRIEF_CHARS:
         await message.answer(texts.BRIEF_TOO_LONG.format(limit=MAX_BRIEF_CHARS))
         return
-    if not acquire(user_id):
-        await message.answer(texts.BUSY)
-        return
-    try:
-        placeholder = await message.answer(texts.THINKING)
-        log.info("custom brief user_id=%s chars=%d", user_id, len(brief))
-        await run_generation(placeholder, user_id, generate_script(llm, brief=brief, **llm_options(settings)), state,
-                             keyboard=True, store_script=True, brief=brief)
-    finally:
-        _running.discard(user_id)
+    placeholder = await message.answer(texts.THINKING)
+    log.info("custom brief user_id=%s chars=%d", user_id, len(brief))
+    await run_generation(placeholder, user_id,
+                         generate_script(llm, brief=brief, db=db, **llm_options(settings)),
+                         state, keyboard=True, store_script=True, brief=brief)
 
 
 @router.message(~F.text)
@@ -276,15 +263,38 @@ async def on_video_prompt(query: CallbackQuery, state: FSMContext, llm: LLMClien
     if not script or not isinstance(query.message, Message):
         await query.message.answer(texts.NO_ACTIVE_SCRIPT) if isinstance(query.message, Message) else None
         return
-    if not acquire(user_id):
-        await query.message.answer(texts.BUSY)
+    placeholder = await query.message.answer(texts.THINKING_VIDEO)
+    await run_generation(placeholder, user_id,
+                         generate_video_prompt(llm, script, **llm_options(settings)), None,
+                         keyboard=False, store_script=False)
+
+
+@router.callback_query(F.data == CB_SAVE_FINAL)
+async def on_save_final(query: CallbackQuery, state: FSMContext,
+                        db: Database | None = None) -> None:
+    """Approve the script: it becomes a style example for every later generation."""
+    await query.answer()                              # the query expires in ~15s
+    if not isinstance(query.message, Message):
         return
-    try:
-        placeholder = await query.message.answer(texts.THINKING_VIDEO)
-        await run_generation(placeholder, user_id, generate_video_prompt(llm, script, **llm_options(settings)), None,
-                             keyboard=False, store_script=False)
-    finally:
-        _running.discard(user_id)
+    data = await state.get_data()
+    script = data.get(KEY_SCRIPT)
+    if not script:
+        await query.message.answer(texts.NO_ACTIVE_SCRIPT)
+        return
+    if data.get(KEY_SAVED):
+        await query.message.answer(texts.ALREADY_SAVED)
+        return
+    saved = False
+    if db is not None:
+        saved = await db.save_script(user_id=query.from_user.id, brief=data.get(KEY_BRIEF),
+                                     script=script)
+    if not saved:
+        log.warning("save failed user_id=%s db_enabled=%s", query.from_user.id,
+                    db.enabled if db else False)
+        await query.message.answer(texts.SAVE_FAILED)
+        return
+    await state.update_data({KEY_SAVED: True})
+    await query.message.answer(texts.SAVED)
 
 
 @router.callback_query(F.data == CB_EDIT_SCRIPT)

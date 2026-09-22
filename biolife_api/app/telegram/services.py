@@ -16,6 +16,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
+from app.db import BASELINE_TEMPLATES, Database, SavedScript
 from app.llm.base import LLMClient
 from app.llm.fallback import GenerationResult
 from app.telegram.texts import MONTHS_UZ, SEASONS_UZ
@@ -64,12 +65,62 @@ class DateContext:
 
 
 # ----------------------------------------------------------------- brand context
-async def fetch_templates_from_db() -> str:
-    """TODO: read today's guidelines from PostgreSQL — biolife.resolve_ad_context() already returns
-    tone, visual style, dish pairing and SKU. Until then, a stable brand baseline."""
-    await asyncio.sleep(0)
-    return ("Tone: Energetic, Focus: Hydration, SKU: BioLife 0.5L PET / 1.5L PET, "
-            "Audience: Uzbekistan, 18-45, urban")
+async def fetch_templates_from_db(db: Database | None = None) -> str:
+    """Today's guidelines from PostgreSQL (biolife.resolve_ad_context): season, event, tone, SKU,
+    dish, audience — compacted to one line. Falls back to the static baseline when the database is
+    not configured or does not answer, so a DB outage never stops the bot."""
+    if db is None:
+        await asyncio.sleep(0)
+        return BASELINE_TEMPLATES
+    return await db.templates()
+
+
+FEW_SHOT_HEADER = "### O'tmishdagi muvaffaqiyatli misollar (Shu uslubga taqlid qiling):"
+
+DEFAULT_FEW_SHOT_CHARS = 1500
+
+
+def few_shot_chars(db: Database | None) -> int:
+    """BIOLIFE_FEW_SHOT_MAX_CHARS was dead config until this: both call sites took the default."""
+    settings = getattr(db, "settings", None)
+    return getattr(settings, "few_shot_max_chars", DEFAULT_FEW_SHOT_CHARS)
+
+
+BRIEF_EXAMPLE_CHARS = 300       # a style example needs the gist of the brief, not all 2000 chars
+
+
+def _trim(text: str, limit: int) -> str:
+    text = text.strip()
+    return text if len(text) <= limit else text[:limit].rstrip() + "\n[...]"
+
+
+def build_system_prompt(base: str, examples: list[SavedScript], *, max_chars: int = 1500) -> str:
+    """In-context learning: approved scripts are appended to the system prompt as style examples.
+
+    BOTH halves are trimmed. The corpus grows forever, every generation and every revision pays
+    for the whole block, and there is no prompt caching here - so an untrimmed brief (up to
+    MAX_BRIEF_CHARS) would silently add thousands of tokens to every call.
+    The newest example comes first: that is the team's most recent taste."""
+    if not examples:
+        return base
+    blocks = []
+    for index, example in enumerate(examples, start=1):
+        brief = f"Brief: {_trim(example.brief, BRIEF_EXAMPLE_CHARS)}\n" if example.brief else ""
+        blocks.append(f"--- MISOL {index} ---\n{brief}{_trim(example.script, max_chars)}")
+    return f"{base}\n\n{FEW_SHOT_HEADER}\n\n" + "\n\n".join(blocks)
+
+
+async def _brand_context(db: Database | None, settings=None) -> tuple[str, list[SavedScript]]:
+    """The two database round trips a generation needs, run CONCURRENTLY.
+
+    Sequentially they added up to 2 x db_command_timeout_s in front of the LLM call, which broke
+    the documented budget (primary 45s + fallback 60s < 120s): a slow-but-alive database made the
+    outer timeout kill the fallback mid-flight, so the marketer got "timeout" instead of a
+    degraded-but-real script."""
+    if db is None:
+        return BASELINE_TEMPLATES, []
+    templates, examples = await asyncio.gather(db.templates(), db.recent_scripts())
+    return templates, examples
 
 
 SEASON_HINTS: dict[str, str] = {
@@ -164,11 +215,15 @@ async def generate_with_fallback(llm: LLMClient, system_prompt: str, user_prompt
     return GenerationResult(text=text, provider=llm.provider, model=model or llm.model, degraded=False)
 
 
-async def generate_script(llm: LLMClient, *, brief: str | None = None,
+async def generate_script(llm: LLMClient, *, brief: str | None = None, db: Database | None = None,
                          model: str | None = None, max_tokens: int | None = None) -> GenerationResult:
-    """brief=None -> today's default campaign; otherwise the marketer's own brief."""
+    """brief=None -> today's default campaign; otherwise the marketer's own brief.
+
+    The system prompt is assembled per call: brand rules + the last approved scripts as examples.
+    """
     date_context = DateContext.now()
-    templates = await fetch_templates_from_db()
+    templates, examples = await _brand_context(db)
+    system = build_system_prompt(BRAND_SYSTEM_PROMPT, examples, max_chars=few_shot_chars(db))
     if brief:
         user = (f"Marketer's brief (answer in the required format):\n\"\"\"\n{brief.strip()}\n\"\"\"\n\n"
                 f"Date: {date_context.as_text()}\n"
@@ -176,9 +231,9 @@ async def generate_script(llm: LLMClient, *, brief: str | None = None,
                 f"Brand guidelines: {templates}")
     else:
         user = _default_brief(date_context, templates)
-    log.info("script generation: custom_brief=%s season=%s", bool(brief), date_context.season_key)
-    return await generate_with_fallback(llm, BRAND_SYSTEM_PROMPT, user, model=model,
-                                        max_tokens=max_tokens)
+    log.info("script generation: custom_brief=%s season=%s examples=%d db=%s",
+             bool(brief), date_context.season_key, len(examples), db.enabled if db else False)
+    return await generate_with_fallback(llm, system, user, model=model, max_tokens=max_tokens)
 
 
 async def generate_video_prompt(llm: LLMClient, script: str, *, model: str | None = None,
@@ -188,10 +243,11 @@ async def generate_video_prompt(llm: LLMClient, script: str, *, model: str | Non
                                         max_tokens=max_tokens)
 
 
-async def revise_script(llm: LLMClient, script: str, feedback: str, *, model: str | None = None,
-                        max_tokens: int | None = None) -> GenerationResult:
+async def revise_script(llm: LLMClient, script: str, feedback: str, *, db: Database | None = None,
+                        model: str | None = None, max_tokens: int | None = None) -> GenerationResult:
     user = (f"Current script:\n\"\"\"\n{script.strip()}\n\"\"\"\n\n"
             f"Editor's requested changes:\n\"\"\"\n{feedback.strip()}\n\"\"\"\n\n"
             f"Return the full updated script.")
-    return await generate_with_fallback(llm, EDIT_SYSTEM_PROMPT, user, model=model,
-                                        max_tokens=max_tokens)
+    examples = await db.recent_scripts() if db is not None else []
+    system = build_system_prompt(EDIT_SYSTEM_PROMPT, examples, max_chars=few_shot_chars(db))
+    return await generate_with_fallback(llm, system, user, model=model, max_tokens=max_tokens)

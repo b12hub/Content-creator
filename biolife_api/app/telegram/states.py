@@ -14,3 +14,4 @@ class ContentStates(StatesGroup):
 KEY_SCRIPT = "active_script"        # last generated script (plain text)
 KEY_BRIEF = "active_brief"          # the brief that produced it
 KEY_MSG_ID = "active_message_id"    # message the script was delivered in
+KEY_SAVED = "active_script_saved"   # True once the 💾 button stored this script

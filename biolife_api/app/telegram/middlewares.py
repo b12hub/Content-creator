@@ -77,6 +77,34 @@ class AccessMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+class BusyMiddleware(BaseMiddleware):
+    """One update per user at a time, claimed BEFORE aiogram's FSM isolation lock.
+
+    Why here and not in the handler: with event isolation a second update waits for the lock and
+    then runs anyway - a second paid generation. Claiming the slot before the lock turns that into
+    an immediate, honest "busy" answer. The trade-off: while a generation runs, other commands
+    from the same person are refused too, which is correct for a single-user-at-a-time tool."""
+
+    async def __call__(self, handler: Handler, event: TelegramObject, data: dict[str, Any]) -> Any:
+        from app.telegram.busy import acquire, release
+        from app.telegram.texts import BUSY
+
+        user = data.get("event_from_user")
+        if user is None or not isinstance(event, Update):
+            return await handler(event, data)
+        if not acquire(user.id):
+            log.info("busy, update refused user_id=%s", user.id)
+            if event.message is not None:
+                await event.message.answer(BUSY)
+            elif event.callback_query is not None:
+                await event.callback_query.answer(BUSY, show_alert=True)
+            return None
+        try:
+            return await handler(event, data)
+        finally:
+            release(user.id)
+
+
 class LoggingMiddleware(BaseMiddleware):
     """One structured line per handled event, with duration."""
 

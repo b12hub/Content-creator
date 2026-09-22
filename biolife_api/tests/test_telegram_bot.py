@@ -14,7 +14,7 @@ from app.llm.base import LLMError
 from app.llm.fake_client import FakeLLMClient
 from app.telegram import texts
 from app.telegram.handlers import split_for_telegram
-from app.telegram.keyboards import CB_EDIT_SCRIPT, CB_VIDEO_PROMPT
+from app.telegram.keyboards import CB_EDIT_SCRIPT, CB_SAVE_FINAL, CB_VIDEO_PROMPT
 from app.telegram.services import DateContext, season_key
 from app.telegram.states import ContentStates
 from tests.telegram_factories import CHAT_ID, USER_ID, callback_update, make_bot, message_update
@@ -24,6 +24,8 @@ pytestmark = pytest.mark.asyncio
 
 @pytest_asyncio.fixture
 async def bot_env(tg_dispatcher):
+    from app.telegram import busy
+    busy._running.clear()          # module-level state must not leak between tests
     bot, session = make_bot()
     llm = FakeLLMClient()
     from app.config import get_settings
@@ -63,7 +65,7 @@ async def test_create_generates_default_script_with_buttons(bot_env):
     await feed(bot, dp, message_update("/create"))
     assert session.method_names() == ["SendMessage", "EditMessageText"]
     assert session.texts()[0] == texts.THINKING
-    assert buttons(session.calls[1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT]
+    assert buttons(session.calls[1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT, CB_SAVE_FINAL]
     # the default brief carries today's date and season into the prompt
     prompt = llm.calls[0]["user"]
     ctx = DateContext.now()
@@ -81,7 +83,7 @@ async def test_free_text_becomes_a_brief(bot_env):
     assert texts.UNKNOWN not in session.texts()
     assert session.texts()[0] == texts.THINKING
     assert "Serum uchun yozgi kampaniya" in llm.calls[0]["user"]
-    assert buttons(session.calls[1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT]
+    assert buttons(session.calls[1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT, CB_SAVE_FINAL]
     _, data = await fsm(dp, bot)
     assert data["active_brief"].startswith("Serum uchun")
 
@@ -147,7 +149,7 @@ async def test_edit_flow_end_to_end(bot_env):
     user_prompt = llm.calls[0]["user"]
     assert "Hookni qisqartir" in user_prompt and "Current script" in user_prompt
     assert "REVISING" in llm.calls[0]["system"]
-    assert buttons(session.calls[-1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT]   # keyboard re-attached
+    assert buttons(session.calls[-1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT, CB_SAVE_FINAL]   # keyboard re-attached
     state, data = await fsm(dp, bot)
     assert state is None and data["active_script"]
 
@@ -205,8 +207,8 @@ async def test_second_request_while_running_is_refused(bot_env, monkeypatch):
     assert texts.BUSY in session.texts()
     gate.set()
     await first
-    from app.telegram.handlers import _running
-    assert USER_ID not in _running
+    from app.telegram.busy import is_busy
+    assert not is_busy(USER_ID)
 
 
 async def test_html_from_llm_is_escaped(bot_env):
@@ -222,7 +224,7 @@ async def test_long_script_is_split_and_keyboard_lands_on_the_last_part(bot_env)
     await feed(bot, dp, message_update("Brief"))
     assert session.method_names().count("SendMessage") >= 2
     assert all(len(t) <= 4096 for t in session.texts())
-    assert buttons(session.calls[-1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT]
+    assert buttons(session.calls[-1]) == [CB_VIDEO_PROMPT, CB_EDIT_SCRIPT, CB_SAVE_FINAL]
 
 
 # ------------------------------------------------------------------- helpers
@@ -356,8 +358,10 @@ async def test_fallback_answer_is_marked_in_the_chat(bot_env):
         mp.setattr(monkeypatch_target, degraded)
         await feed(bot, dp, message_update("Brief"))
     assert "Zaxira ssenariy" in session.texts()[1]
-    assert "zaxira model" in session.texts()[-1].lower()
-    assert "nemotron" in session.texts()[-1]
+    notice = session.texts()[-1]
+    assert "Asosiy AI vaqtinchalik band" in notice
+    assert "zaxira modeli" in notice.lower()
+    assert "nemotron" not in notice          # the notice names no model: it is for marketers
     _, data = await fsm(dp, bot)
     assert data["active_script"] == "🎬 Zaxira ssenariy"       # stored without the notice
 
@@ -366,3 +370,15 @@ async def test_healthy_answer_has_no_fallback_notice(bot_env):
     bot, session, dp, llm = bot_env
     await feed(bot, dp, message_update("Brief"))
     assert not any("zaxira model" in t.lower() for t in session.texts())
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _no_busy_leak():
+    """The busy set is module-level: a test that leaves a user in it would make the next test
+    receive 'busy' instead of an answer."""
+    from app.telegram import busy
+    busy._running.clear()
+    yield
+    leaked = set(busy._running)
+    busy._running.clear()
+    assert not leaked, f"busy flag leaked for {leaked}"

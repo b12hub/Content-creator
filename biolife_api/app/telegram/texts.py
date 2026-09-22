@@ -30,8 +30,14 @@ CANCELLED: Final = "Bekor qilindi. Yangi ssenariy uchun /create yoki briefingizn
 NO_ACTIVE_SCRIPT: Final = ("Faol ssenariy topilmadi. Avval /create yuboring yoki briefingizni yozing.")
 BRIEF_TOO_LONG: Final = "Brief juda uzun ({limit} belgidan oshmasin). Qisqartirib yuboring."
 TEXT_ONLY: Final = "Hozircha faqat matnli brieflarni qabul qilaman."
-FALLBACK_NOTICE: Final = ("⚠️ Asosiy model ishlamadi — javob zaxira model orqali tayyorlandi "
-                          "({model}). Matnni diqqat bilan tekshiring.")
+FALLBACK_NOTICE: Final = ("⚠️ Diqqat: Asosiy AI vaqtinchalik band. "
+                          "Matn zaxira modeli orqali yaratildi.")
+PARTIAL_DELIVERY: Final = ("Telegram xabarni to‘liq yubora olmadi (limit yoki tarmoq). "
+                           "Ssenariy saqlanib qoldi — quyidagi tugmalar ishlaydi.")
+SAVED: Final = "✅ Ssenariy saqlandi! Kelgusi generatsiyalarda ushbu uslub inobatga olinadi."
+SAVE_FAILED: Final = ("Saqlab bo‘lmadi: ma’lumotlar bazasi ulanmagan yoki javob bermadi. "
+                      "Ssenariy o‘zgarmadi — qayta urinib ko‘ring.")
+ALREADY_SAVED: Final = "Bu ssenariy allaqachon saqlangan."
 BUSY: Final = "Oldingi so‘rovingiz hali tayyor bo‘lmadi. Bir oz kuting ⏳"
 ERROR: Final = "Xatolik yuz berdi. Bir daqiqadan so‘ng qayta urinib ko‘ring."
 GENERATION_FAILED: Final = "Ssenariy yaratilmadi: {reason}\nQayta urinib ko‘ring — /create"

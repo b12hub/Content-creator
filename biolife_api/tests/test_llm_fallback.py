@@ -198,7 +198,7 @@ async def test_settings_read_openrouter_env(monkeypatch):
     monkeypatch.setenv("BIOLIFE_OPENROUTER_API_KEY", "or-abc")
     s = Settings()
     assert s.openrouter_api_key.get_secret_value() == "or-abc"
-    assert s.openrouter_fallback_model == "nvidia/nemotron-3-ultra:free"
+    assert s.openrouter_fallback_model == "nvidia/nemotron-3-ultra-550b-a55b:free"
 
 
 async def test_build_llm_wraps_only_when_configured(monkeypatch):
