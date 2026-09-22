@@ -19,9 +19,12 @@ USER_ID = 555_000
 class RecordingSession(BaseSession):
     """Captures every outgoing Telegram API call instead of sending it."""
 
-    def __init__(self) -> None:
+    def __init__(self, fail_html: bool = False) -> None:
+        """fail_html=True makes Telegram reject messages that carry HTML markup, the way a broken
+        entity does in production ('can't parse entities'). Plain messages still go through."""
         super().__init__()
         self.calls: list[TelegramMethod[Any]] = []
+        self.fail_html = fail_html
 
     def method_names(self) -> list[str]:
         return [type(c).__name__ for c in self.calls]
@@ -40,6 +43,11 @@ class RecordingSession(BaseSession):
     async def make_request(self, bot: Bot, method: TelegramMethod[Any], timeout: int | None = None) -> Any:
         self.calls.append(method)
         name = type(method).__name__
+        if self.fail_html and name in {"SendMessage", "EditMessageText"} \
+                and getattr(method, "parse_mode", "keep") is not None \
+                and any(ch in (getattr(method, "text", "") or "") for ch in "<&"):
+            from aiogram.exceptions import TelegramBadRequest
+            raise TelegramBadRequest(method=method, message="Bad Request: can't parse entities")
         if name in {"SendMessage", "EditMessageText"}:
             # .as_(bot) binds the message to the bot, exactly as the real session does - otherwise
             # message.edit_text() raises "This method is not mounted to a any bot instance".
@@ -79,3 +87,12 @@ def message_update(text: str, update_id: int | None = None, language_code: str =
     return base | {"message": {
         "message_id": base["update_id"], "date": 1700000000, "chat": {"id": CHAT_ID, "type": "private"},
         "from": _from_user(language_code), "text": text, "entities": entities}}
+
+
+def callback_update(data: str, update_id: int | None = None) -> dict[str, Any]:
+    """An inline-button tap."""
+    base = _base(update_id)
+    return base | {"callback_query": {
+        "id": f"cb{base['update_id']}", "from": _from_user(), "chat_instance": "ci", "data": data,
+        "message": {"message_id": 99, "date": 1700000000, "chat": {"id": CHAT_ID, "type": "private"},
+                    "from": {"id": 1, "is_bot": True, "first_name": "BioLife"}, "text": "..."}}}

@@ -68,5 +68,30 @@ class AnthropicClient:
         except ValidationError as e:
             raise LLMError(f"Anthropic output failed schema validation: {e}") from e
 
+    async def generate_text(self, *, system: str, user: str, model: str | None = None,
+                            max_tokens: int | None = None) -> str:
+        """Free-form text (no JSON schema), used by the Telegram copywriter."""
+        try:
+            resp = await self._client.messages.create(
+                model=model or self.model,
+                max_tokens=max_tokens or self.max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+        except anthropic.AuthenticationError as e:
+            raise LLMError("Anthropic rejected the API key (401). Check ANTHROPIC_API_KEY "
+                           f"and the workspace balance: {e}") from e
+        except anthropic.APIError as e:
+            raise LLMError(f"Anthropic API error: {e}") from e
+
+        if resp.stop_reason == "refusal":
+            raise LLMRefusal("Model refused to answer this prompt")
+        text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+        if not text:
+            raise LLMError("Anthropic returned an empty answer")
+        if resp.stop_reason == "max_tokens":
+            text += "\n\n[…]"          # truncated: tell the reader instead of pretending it is complete
+        return text
+
     async def aclose(self) -> None:
         await self._client.close()

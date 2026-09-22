@@ -14,6 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from app.config import Settings
+from app.llm.base import LLMClient
 from app.telegram.handlers import router
 from app.telegram.middlewares import (
     AccessMiddleware, DedupeMiddleware, LoggingMiddleware, ThrottleMiddleware,
@@ -24,6 +25,7 @@ log = logging.getLogger("biolife.telegram.bot")
 COMMANDS: list[BotCommand] = [
     BotCommand(command="create", description="Bugungi reklama ssenariysi"),
     BotCommand(command="start", description="Botni ishga tushirish"),
+    BotCommand(command="cancel", description="Tahrirlashni bekor qilish"),
     BotCommand(command="help", description="Yordam"),
 ]
 
@@ -32,8 +34,6 @@ class TelegramNotConfigured(RuntimeError):
     """Raised when bot endpoints are used without BIOLIFE_TELEGRAM_BOT_TOKEN."""
 
 
-# This bot keeps no per-user state: /create is stateless, so the default in-memory storage is
-# enough and the process can run with several uvicorn workers.
 def build_bot(settings: Settings) -> Bot:
     if not settings.telegram_bot_token:
         raise TelegramNotConfigured("BIOLIFE_TELEGRAM_BOT_TOKEN is not set")
@@ -41,8 +41,10 @@ def build_bot(settings: Settings) -> Bot:
                default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
-def build_dispatcher(settings: Settings) -> Dispatcher:
-    dp = Dispatcher(storage=MemoryStorage())
+def build_dispatcher(settings: Settings, llm: "LLMClient | None" = None) -> Dispatcher:
+    # FSM keeps the active script and the edit mode. MemoryStorage is per-process: with several
+    # uvicorn workers a user can land on a worker that does not know their script.
+    dp = Dispatcher(storage=MemoryStorage(), llm=llm, settings=settings)   # injected into handlers
     # outer middlewares run before filters, so duplicates and floods never reach a handler
     dp.update.outer_middleware(DedupeMiddleware())
     dp.update.outer_middleware(ThrottleMiddleware(settings.telegram_min_interval_s))
@@ -76,7 +78,7 @@ async def setup_webhook(bot: Bot, settings: Settings) -> None:
         url=url,
         secret_token=settings.telegram_webhook_secret.get_secret_value() if settings.telegram_webhook_secret else None,
         drop_pending_updates=settings.telegram_drop_pending_updates,
-        allowed_updates=["message"],          # this bot has no inline buttons
+        allowed_updates=["message", "callback_query"],
         max_connections=settings.telegram_max_connections,
     )
     await bot.set_my_commands(COMMANDS)

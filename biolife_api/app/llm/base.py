@@ -24,3 +24,12 @@ class LLMClient(Protocol):
     model: str
 
     async def generate_structured(self, *, system: str, user: str, schema: type[T]) -> T: ...
+
+    async def generate_text(self, *, system: str, user: str, model: str | None = None,
+                            max_tokens: int | None = None) -> str:
+        """Plain-text completion for the Telegram copywriter.
+
+        Kept separate from generate_structured on purpose: structured outputs need a recent model
+        (Sonnet 4.5+/Opus 4.5+/Haiku 4.5), while free-form text works on any model, including
+        claude-3-5-sonnet-20240620."""
+        ...

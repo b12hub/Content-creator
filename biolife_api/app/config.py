@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     llm_provider: Literal["anthropic", "openai", "fake"] = "anthropic"
     anthropic_model: str = "claude-sonnet-5"
     openai_model: str = ""            # set explicitly, e.g. BIOLIFE_OPENAI_MODEL=...
+    # Optional override for the Telegram copywriter (plain text, no JSON schema). Leave empty to
+    # reuse anthropic_model. Structured-output endpoints need Sonnet 4.5+/Opus 4.5+/Haiku 4.5, but
+    # free text works on older models too, e.g. claude-3-5-sonnet-20240620.
+    telegram_llm_model: str = ""
+    telegram_llm_max_tokens: int = 2000
     max_output_tokens: int = 4000
     llm_timeout_s: float = 90.0
     max_attempts: int = 2             # 1 generation + 1 self-repair retry

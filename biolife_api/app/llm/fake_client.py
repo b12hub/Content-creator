@@ -69,5 +69,21 @@ class FakeLLMClient:
             raise item
         return schema.model_validate(item)
 
+    async def generate_text(self, *, system: str, user: str, model: str | None = None,
+                            max_tokens: int | None = None) -> str:
+        """Deterministic offline answer that echoes the brief, so tests can assert what was sent."""
+        self.calls.append({"system": system, "user": user})
+        if self._queue:
+            item = self._queue.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item if isinstance(item, str) else str(item)
+        head = user.strip().splitlines()[0][:80] if user.strip() else "brief"
+        return (f"🎬 BioLife — demo ssenariy (offline)\n"
+                f"Brief: {head}\n\n"
+                f"0-3s HOOK\nRU: Жара не спрашивает.\nUZ: Issiq so‘ramaydi.\n\n"
+                f"3-10s TANA\nRU: Один глоток — и день снова твой.\nUZ: Bir qultum — kun yana sizniki.\n\n"
+                f"10-15s CTA\nRU: Возьми BioLife.\nUZ: BioLife’ni oling.")
+
     async def aclose(self) -> None:  # pragma: no cover
         return None

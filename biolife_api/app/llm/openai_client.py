@@ -42,5 +42,18 @@ class OpenAIClient:
             raise LLMError("OpenAI returned no parsed output (possible refusal or truncation)")
         return resp.output_parsed
 
+    async def generate_text(self, *, system: str, user: str, model: str | None = None,
+                            max_tokens: int | None = None) -> str:
+        try:
+            resp = await self._client.responses.create(
+                model=model or self.model, instructions=system, input=user,
+                max_output_tokens=max_tokens or self.max_tokens)
+        except openai.OpenAIError as e:
+            raise LLMError(f"OpenAI API error: {e}") from e
+        text = (resp.output_text or "").strip()
+        if not text:
+            raise LLMError("OpenAI returned an empty answer")
+        return text
+
     async def aclose(self) -> None:
         await self._client.close()

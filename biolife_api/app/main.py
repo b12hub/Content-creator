@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
         from app.telegram.bot import build_bot, build_dispatcher, setup_webhook
         bot = build_bot(settings)
         app.state.telegram_bot = bot
-        app.state.telegram_dispatcher = build_dispatcher(settings)
+        app.state.telegram_dispatcher = build_dispatcher(settings, llm=app.state.llm_client)
         try:
             await setup_webhook(bot, settings)
         except Exception:

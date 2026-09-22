@@ -80,30 +80,36 @@ DB note: the planner uses `primary_event.priority/day_index/days_total/window_*`
 `resolve_ad_context()` in biolife_db v1.1 (additive; older payloads still validate).
 
 ## Telegram bot — internal AI copywriter (aiogram 3.x, webhook)
-Internal tool for the BioLife marketing team. No shop, no FSM, no customer flows.
-All bot copy is Uzbek (Latin); only the generated script itself is bilingual RU/UZ.
+Internal tool for the BioLife marketing team. All bot copy is Uzbek (Latin); the generated script
+itself is bilingual RU/UZ.
 
 | File | Role |
 |---|---|
-| `app/telegram/handlers.py` | `/start`, `/create`, `/help`, fallback, error trap |
-| `app/telegram/services.py` | `fetch_templates_from_db()`, `generate_llm_script()`, date/season helpers |
-| `app/telegram/texts.py` | All Uzbek copy, month and season names |
-| `app/telegram/bot.py` | Bot + Dispatcher, commands, access control, webhook registration |
+| `app/telegram/handlers.py` | `/start`, `/create`, `/cancel`, free-form briefs, inline buttons, edit FSM |
+| `app/telegram/services.py` | Real Anthropic calls + the three system prompts |
+| `app/telegram/keyboards.py` | `btn_gen_video_prompt` / `btn_edit_script` |
+| `app/telegram/states.py` | `ContentStates.waiting_for_script_edits` + FSM data keys |
+| `app/telegram/bot.py` | Bot + Dispatcher (injects `llm` and `settings`), commands, access control |
 | `app/routers/telegram.py` | FastAPI webhook receiver (unchanged) |
-| `app/telegram/middlewares.py` | Access allowlist, duplicate protection, throttling, logging |
 
-`/create` flow: answer `O‘ylayapman... ⏳` at once → read today's date, month and season in Tashkent
-time → `fetch_templates_from_db()` → `generate_llm_script(season, templates)` (90 s timeout) →
-**edit** the same message with the script. Long scripts continue as follow-up messages (4096-char limit).
+Flows:
+- **Any text** → that text is the brief → script + inline keyboard.
+- **/create** → today's default campaign (date, month, season in Tashkent time).
+- **🎬 button** → the stored script becomes AI-video prompts (Runway / Luma / Sora / Midjourney),
+  delivered in `<pre>` blocks for one-tap copy.
+- **✏️ button** → state `waiting_for_script_edits` → the next message is feedback → revised script
+  with the keyboard re-attached. `/cancel` or `/create` always leave edit mode.
+- **Unknown command** (`/foo`) → a hint, never a paid LLM call.
 
-```bash
-export BIOLIFE_TELEGRAM_BOT_TOKEN=... BIOLIFE_TELEGRAM_WEBHOOK_SECRET=...        BIOLIFE_TELEGRAM_WEBHOOK_BASE_URL=https://api.biolife.uz        BIOLIFE_TELEGRAM_ALLOWED_USER_IDS='[111111111,222222222]'
-uvicorn app.main:app
-```
+### Models
+The bot uses plain-text completions, so any model works, including `claude-3-5-sonnet-20240620`.
+Pin one for the bot with `BIOLIFE_TELEGRAM_LLM_MODEL` — do **not** set `BIOLIFE_ANTHROPIC_MODEL`
+to a 3.x model: `/generate-reel-script` and `/generate-campaign-package` use structured outputs,
+which need Sonnet 4.5+ / Opus 4.5+ / Haiku 4.5 (verified in Anthropic's docs).
 
 ### Notes
-- **Set the allowlist.** With `BIOLIFE_TELEGRAM_ALLOWED_USER_IDS` empty any Telegram user can
-  generate scripts; the app logs a warning at startup.
-- The bot keeps no per-user state, so it runs fine with several uvicorn workers.
-- Only `message` updates are subscribed; one `/create` per user at a time.
-- Date and season use Asia/Tashkent (+05:00), with a fallback offset when the image has no tzdata.
+- Set `BIOLIFE_TELEGRAM_ALLOWED_USER_IDS`, otherwise anyone can spend your Anthropic credit.
+- FSM is in-memory: the active script lives in the process. Run a single uvicorn worker, or move
+  the storage to Redis before scaling out.
+- One generation per user at a time; every long answer is split so no HTML tag or entity is cut,
+  and a formatting rejection falls back to plain text instead of losing the answer.

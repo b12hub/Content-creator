@@ -24,6 +24,10 @@ class BrokenLLMClient:
     async def generate_structured(self, *, system: str, user: str, schema: type) -> object:
         raise MissingApiKey(self._reason)
 
+    async def generate_text(self, *, system: str, user: str, model: str | None = None,
+                            max_tokens: int | None = None) -> str:
+        raise MissingApiKey(self._reason)
+
     async def aclose(self) -> None:
         return None
 
