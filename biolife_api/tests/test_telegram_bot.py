@@ -339,3 +339,30 @@ async def test_busy_lock_is_atomic_for_concurrent_updates(bot_env, monkeypatch):
     gate.set()
     await asyncio.gather(*tasks)
     assert len(calls) == 1 and texts.BUSY in session.texts()
+
+
+# ---- hybrid fallback visible to the marketer ----
+async def test_fallback_answer_is_marked_in_the_chat(bot_env):
+    """A degraded answer must be labelled: the backup model's Uzbek is weaker."""
+    from app.llm.fallback import GenerationResult
+    bot, session, dp, llm = bot_env
+
+    async def degraded(*a, **kw):
+        return GenerationResult(text="🎬 Zaxira ssenariy", provider="openrouter",
+                                model="nvidia/nemotron-3-ultra:free", degraded=True)
+    monkeypatch_target = "app.telegram.handlers.generate_script"
+    import pytest as _pytest
+    with _pytest.MonkeyPatch.context() as mp:
+        mp.setattr(monkeypatch_target, degraded)
+        await feed(bot, dp, message_update("Brief"))
+    assert "Zaxira ssenariy" in session.texts()[1]
+    assert "zaxira model" in session.texts()[-1].lower()
+    assert "nemotron" in session.texts()[-1]
+    _, data = await fsm(dp, bot)
+    assert data["active_script"] == "🎬 Zaxira ssenariy"       # stored without the notice
+
+
+async def test_healthy_answer_has_no_fallback_notice(bot_env):
+    bot, session, dp, llm = bot_env
+    await feed(bot, dp, message_update("Brief"))
+    assert not any("zaxira model" in t.lower() for t in session.texts())

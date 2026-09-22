@@ -26,6 +26,7 @@ from aiogram.types import CallbackQuery, ErrorEvent, InlineKeyboardMarkup, Messa
 
 from app.config import Settings
 from app.llm.base import LLMClient, LLMError
+from app.llm.fallback import GenerationResult
 from app.telegram import texts
 from app.telegram.keyboards import CB_EDIT_SCRIPT, CB_VIDEO_PROMPT, script_actions_keyboard
 from app.telegram.services import DateContext, generate_script, generate_video_prompt, revise_script
@@ -157,11 +158,19 @@ async def run_generation(placeholder: Message, user_id: int, coro, state: FSMCon
         await fail(placeholder, type(exc).__name__)
         return
 
+    text = result.text if isinstance(result, GenerationResult) else str(result)
+    degraded = isinstance(result, GenerationResult) and result.degraded
+    if degraded:
+        log.warning("answer served by the fallback provider %s (%s)", result.provider, result.model)
+
     # Store BEFORE delivering: if sending fails, the buttons must still find the script.
     if store_script and state is not None:
-        await state.update_data({KEY_SCRIPT: result, **({KEY_BRIEF: brief} if brief else {})})
-    await deliver(placeholder, result, script_actions_keyboard() if keyboard else None,
+        await state.update_data({KEY_SCRIPT: text, **({KEY_BRIEF: brief} if brief else {})})
+    await deliver(placeholder, text, script_actions_keyboard() if keyboard else None,
                   render=as_html if store_script else as_copy_block)
+    if degraded:
+        # The marketer must know the text came from the backup model, whose Uzbek is weaker.
+        await placeholder.answer(texts.FALLBACK_NOTICE.format(model=html.escape(result.model)))
 
 
 # --------------------------------------------------------------------- commands

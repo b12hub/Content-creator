@@ -161,3 +161,12 @@ def test_base_url_without_scheme_is_rejected_at_startup():
     from app.config import Settings
     with _pytest.raises(ValidationError, match="absolute https URL"):
         Settings(telegram_webhook_base_url="gigolo.ngrok-free.dev")
+
+
+def test_shutdown_drains_updates_before_closing_the_llm_client():
+    """Regression: the LLM client was closed first, so an in-flight /create degraded or failed."""
+    import inspect
+
+    from app import main
+    source = inspect.getsource(main.lifespan)
+    assert source.index("drain_background()") < source.index('getattr(app.state.llm_client, "aclose"')

@@ -38,8 +38,23 @@ class Settings(BaseSettings):
     # free text works on older models too, e.g. claude-3-5-sonnet-20240620.
     telegram_llm_model: str = ""
     telegram_llm_max_tokens: int = 2000
+
+    # ---- OpenRouter fallback (used when Anthropic fails) -----------------------
+    openrouter_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("BIOLIFE_OPENROUTER_API_KEY", "OPENROUTER_API_KEY"))
+    # NOTE: verify the slug against https://openrouter.ai/api/v1/models - the catalogue changes and
+    # a wrong id fails with 404 on the first fallback.
+    openrouter_fallback_model: str = "nvidia/nemotron-3-ultra:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_timeout_s: float = 60.0
+    openrouter_referer: str = "https://biolife.uz"      # app attribution (required for rankings)
+    openrouter_title: str = "BioLife Telegram Bot"
     max_output_tokens: int = 4000
     llm_timeout_s: float = 90.0
+    # Budget for ONE primary attempt inside the hybrid client. It must leave room for the fallback:
+    # llm_primary_timeout_s + openrouter_timeout_s < handlers.GENERATION_TIMEOUT_S (120 s).
+    llm_primary_timeout_s: float = 45.0
+    llm_max_retries: int = 1          # SDK retries multiply the wall time - keep it small
     max_attempts: int = 2             # 1 generation + 1 self-repair retry
 
     # !!! VERIFY before going live: handles/links below must be BioLife's REAL channels.

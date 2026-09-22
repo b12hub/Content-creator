@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.dependencies import build_llm_client
+from app.dependencies import build_llm
 from app.routers import ad_generator, campaign, telegram
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -15,7 +16,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    app.state.llm_client = build_llm_client(settings)
+    app.state.llm_client = build_llm(settings)
+    # Check the fallback model id in the background: never block startup on a third party.
+    fallback = getattr(app.state.llm_client, "fallback", None)
+    if fallback is not None and hasattr(fallback, "warn_if_model_unknown"):
+        asyncio.create_task(fallback.warn_if_model_unknown())
 
     # Telegram bot is optional: the API keeps working without a token.
     app.state.telegram_bot = None
@@ -35,17 +40,18 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    close = getattr(app.state.llm_client, "aclose", None)
-    if close:
-        await close()
+    # Order matters: in-flight updates still use the LLM client, so it is closed last.
     if app.state.telegram_bot is not None:
         from app.routers.telegram import drain_background
         from app.telegram.bot import shutdown_bot
-        await drain_background()                      # finish in-flight orders before closing anything
+        await drain_background()
         await shutdown_bot(app.state.telegram_bot, settings)
     dp = app.state.telegram_dispatcher
     if dp is not None:
         await dp.storage.close()
+    close = getattr(app.state.llm_client, "aclose", None)
+    if close:
+        await close()
 
 
 app = FastAPI(title="BioLife AI Reel Generator", version="4.0.0", lifespan=lifespan)

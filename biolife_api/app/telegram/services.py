@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from app.llm.base import LLMClient
+from app.llm.fallback import GenerationResult
 from app.telegram.texts import MONTHS_UZ, SEASONS_UZ
 
 log = logging.getLogger("biolife.telegram.services")
@@ -146,8 +147,25 @@ def _default_brief(date_context: DateContext, templates: str) -> str:
             f"Goal: one Instagram Reel script for the daily content plan.")
 
 
+async def generate_with_fallback(llm: LLMClient, system_prompt: str, user_prompt: str, *,
+                                 model: str | None = None,
+                                 max_tokens: int | None = None) -> GenerationResult:
+    """Single entry point for every bot generation.
+
+    With a FallbackLLMClient this tries Anthropic and, on an API failure, OpenRouter; the result
+    says which provider answered so the bot can mark a degraded answer. With a plain client it is
+    a normal call whose result is reported as non-degraded."""
+    generate = getattr(llm, "generate", None)
+    if generate is not None:                      # FallbackLLMClient
+        return await generate(system=system_prompt, user=user_prompt, model=model,
+                              max_tokens=max_tokens)
+    text = await llm.generate_text(system=system_prompt, user=user_prompt, model=model,
+                                   max_tokens=max_tokens)
+    return GenerationResult(text=text, provider=llm.provider, model=model or llm.model, degraded=False)
+
+
 async def generate_script(llm: LLMClient, *, brief: str | None = None,
-                         model: str | None = None, max_tokens: int | None = None) -> str:
+                         model: str | None = None, max_tokens: int | None = None) -> GenerationResult:
     """brief=None -> today's default campaign; otherwise the marketer's own brief."""
     date_context = DateContext.now()
     templates = await fetch_templates_from_db()
@@ -159,21 +177,21 @@ async def generate_script(llm: LLMClient, *, brief: str | None = None,
     else:
         user = _default_brief(date_context, templates)
     log.info("script generation: custom_brief=%s season=%s", bool(brief), date_context.season_key)
-    return await llm.generate_text(system=BRAND_SYSTEM_PROMPT, user=user, model=model,
-                                   max_tokens=max_tokens)
+    return await generate_with_fallback(llm, BRAND_SYSTEM_PROMPT, user, model=model,
+                                        max_tokens=max_tokens)
 
 
 async def generate_video_prompt(llm: LLMClient, script: str, *, model: str | None = None,
-                                max_tokens: int | None = None) -> str:
+                                max_tokens: int | None = None) -> GenerationResult:
     user = f"Reel script:\n\"\"\"\n{script.strip()}\n\"\"\""
-    return await llm.generate_text(system=VIDEO_PROMPT_SYSTEM, user=user, model=model,
-                                   max_tokens=max_tokens)
+    return await generate_with_fallback(llm, VIDEO_PROMPT_SYSTEM, user, model=model,
+                                        max_tokens=max_tokens)
 
 
 async def revise_script(llm: LLMClient, script: str, feedback: str, *, model: str | None = None,
-                        max_tokens: int | None = None) -> str:
+                        max_tokens: int | None = None) -> GenerationResult:
     user = (f"Current script:\n\"\"\"\n{script.strip()}\n\"\"\"\n\n"
             f"Editor's requested changes:\n\"\"\"\n{feedback.strip()}\n\"\"\"\n\n"
             f"Return the full updated script.")
-    return await llm.generate_text(system=EDIT_SYSTEM_PROMPT, user=user, model=model,
-                                   max_tokens=max_tokens)
+    return await generate_with_fallback(llm, EDIT_SYSTEM_PROMPT, user, model=model,
+                                        max_tokens=max_tokens)

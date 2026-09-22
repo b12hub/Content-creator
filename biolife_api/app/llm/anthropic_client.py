@@ -20,7 +20,8 @@ T = TypeVar("T", bound=BaseModel)
 class AnthropicClient:
     provider = "anthropic"
 
-    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str):
+    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str,
+                 max_retries: int = 1):
         """The key is passed in explicitly. It is NOT left to the SDK's env lookup: the app reads
         .env through pydantic-settings, which never copies values into os.environ, so the SDK would
         find nothing and fail at request time with
@@ -34,7 +35,8 @@ class AnthropicClient:
         self.model = model
         self.max_tokens = max_tokens
         self._schemas: dict[type, dict] = {}
-        self._client = anthropic.AsyncAnthropic(api_key=api_key.strip(), timeout=timeout_s, max_retries=2)
+        self._client = anthropic.AsyncAnthropic(api_key=api_key.strip(), timeout=timeout_s,
+                                                max_retries=max_retries)
 
     def _schema_for(self, schema: type[BaseModel]) -> dict:
         if schema not in self._schemas:

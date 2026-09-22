@@ -6,7 +6,7 @@ import logging
 from fastapi import Request
 
 from app.config import Settings, get_settings
-from app.llm.base import LLMClient, MissingApiKey
+from app.llm.base import LLMClient, LLMError, MissingApiKey
 
 log = logging.getLogger("biolife.llm")
 
@@ -32,6 +32,23 @@ class BrokenLLMClient:
         return None
 
 
+def build_fallback_client(settings: Settings) -> LLMClient | None:
+    """OpenRouter stand-in used when the primary provider cannot answer."""
+    if not settings.openrouter_api_key:
+        return None
+    from app.llm.openrouter_client import OpenRouterClient
+    try:
+        client = OpenRouterClient(
+            settings.openrouter_api_key.get_secret_value(), settings.openrouter_fallback_model,
+            base_url=settings.openrouter_base_url, timeout_s=settings.openrouter_timeout_s,
+            referer=settings.openrouter_referer, title=settings.openrouter_title)
+    except LLMError as exc:
+        log.error("OpenRouter fallback disabled: %s", exc)
+        return None
+    log.info("LLM fallback: openrouter model=%s", settings.openrouter_fallback_model)
+    return client
+
+
 def build_llm_client(settings: Settings) -> LLMClient:
     """Credentials are read from Settings and passed to the SDK explicitly."""
     if settings.llm_provider == "anthropic":
@@ -39,7 +56,8 @@ def build_llm_client(settings: Settings) -> LLMClient:
         try:
             client = AnthropicClient(
                 settings.anthropic_model, settings.max_output_tokens, settings.llm_timeout_s,
-                api_key=settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else "")
+                api_key=settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else "",
+                max_retries=settings.llm_max_retries)
         except MissingApiKey as exc:
             log.error("Anthropic disabled: %s", exc)
             return BrokenLLMClient("anthropic", str(exc))
@@ -58,6 +76,21 @@ def build_llm_client(settings: Settings) -> LLMClient:
     from app.llm.fake_client import FakeLLMClient
     log.info("LLM provider: fake (offline demo)")
     return FakeLLMClient()
+
+
+def build_llm(settings: Settings) -> LLMClient:
+    """Primary provider + optional OpenRouter fallback, as one LLMClient."""
+    from app.llm.fallback import FallbackLLMClient
+    primary = build_llm_client(settings)
+    fallback = build_fallback_client(settings)
+    if fallback is None:
+        log.info("no LLM fallback configured (set BIOLIFE_OPENROUTER_API_KEY to enable one)")
+        return primary
+    if settings.llm_primary_timeout_s + settings.openrouter_timeout_s >= 120:
+        log.warning("llm_primary_timeout_s (%.0fs) + openrouter_timeout_s (%.0fs) leaves no room "
+                    "inside the bot's 120s budget - the fallback may never run",
+                    settings.llm_primary_timeout_s, settings.openrouter_timeout_s)
+    return FallbackLLMClient(primary, fallback, primary_timeout_s=settings.llm_primary_timeout_s)
 
 
 def get_llm_client(request: Request) -> LLMClient:

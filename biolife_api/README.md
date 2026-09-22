@@ -113,3 +113,44 @@ which need Sonnet 4.5+ / Opus 4.5+ / Haiku 4.5 (verified in Anthropic's docs).
   the storage to Redis before scaling out.
 - One generation per user at a time; every long answer is split so no HTML tag or entity is cut,
   and a formatting rejection falls back to plain text instead of losing the answer.
+
+## Hybrid LLM: Anthropic → OpenRouter fallback
+`app/llm/fallback.py` wraps the primary client. `app/telegram/services.generate_with_fallback()`
+is the single entry point every bot generation goes through (`/create`, free-form briefs, the 🎬
+video prompt and the ✏️ edit flow all use it).
+
+```
+Anthropic  --ok-->  answer
+   |  auth error / 429 / 529 / 5xx / timeout / connection error / missing key
+   v
+OpenRouter (httpx, OpenAI-compatible)  -->  answer + "⚠️ zaxira model" notice in the chat
+```
+
+Enable it:
+```bash
+BIOLIFE_OPENROUTER_API_KEY=sk-or-...
+BIOLIFE_OPENROUTER_FALLBACK_MODEL=nvidia/nemotron-3-ultra:free
+```
+Without the key the bot behaves exactly as before (no wrapper, original errors).
+
+### Deliberate limits
+- **A refusal never falls back.** Refusals are content decisions, not outages; routing them to
+  another provider would be a way around the safety decision.
+- **`generate_structured()` never falls back.** `/generate-reel-script` and
+  `/generate-campaign-package` depend on Anthropic's structured outputs; a free model gives no
+  schema guarantee, so failing loudly beats returning JSON that breaks the contract.
+- **Time budget:** one primary attempt is capped at `BIOLIFE_LLM_PRIMARY_TIMEOUT_S` (45 s) and the
+  fallback at `BIOLIFE_OPENROUTER_TIMEOUT_S` (60 s), so both fit inside the handler's 120 s. The
+  app warns at startup if the sum leaves no room.
+- **Degraded answers are labelled** in the chat: the free model's Uzbek is weaker and a marketer
+  must know which model wrote the text.
+
+### Verified against OpenRouter's docs (Sep 2026)
+- `POST https://openrouter.ai/api/v1/chat/completions`; `HTTP-Referer` + `X-Title` for attribution.
+- Errors arrive as HTTP status codes with `{"error": {...}}`; the client also guards against a
+  200 that carries an error object, an empty answer, and `content` sent as a list of parts.
+- `:free` models allow **20 requests/minute and 50/day** (1000 after buying ≥10 credits), so the
+  fallback is a safety net, not a second primary.
+- **The default slug `nvidia/nemotron-3-ultra:free` is not in OpenRouter's catalogue today.**
+  Pick a current id from `https://openrouter.ai/api/v1/models`; the app checks the id at startup
+  in the background and logs an error if it is unknown.
