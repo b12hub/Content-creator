@@ -120,3 +120,44 @@ def test_drain_background_waits_for_tasks():
         return done
 
     assert asyncio.run(scenario()) == ["finished"]
+
+
+# ---- regressions: malformed env values (reported from a live ngrok run) ----
+def test_full_url_in_path_setting_is_reduced_to_a_local_route():
+    from app.config import Settings
+    s = Settings(telegram_webhook_path="https://abc.ngrok-free.dev/telegram/webhook",
+                 telegram_webhook_base_url="https://abc.ngrok-free.dev")
+    assert s.telegram_webhook_path == "/telegram/webhook"
+    assert s.telegram_webhook_url == "https://abc.ngrok-free.dev/telegram/webhook"
+
+
+def test_path_inside_base_url_is_stripped_not_concatenated():
+    from app.config import Settings
+    s = Settings(telegram_webhook_base_url="https://abc.ngrok-free.dev/webhook/",
+                 telegram_webhook_path="/telegram/webhook")
+    assert s.telegram_webhook_base_url == "https://abc.ngrok-free.dev"
+    assert s.base_url_had_path == "/webhook"
+    assert s.telegram_webhook_url == "https://abc.ngrok-free.dev/telegram/webhook"
+    assert s.telegram_webhook_url.count("https://") == 1
+
+
+def test_users_exact_broken_env_produces_one_valid_url():
+    """The values from the failing .env: base with /webhook, path as a full URL."""
+    from app.config import Settings
+    s = Settings(telegram_webhook_base_url="https://gigolo-untracked-viewless.ngrok-free.dev/webhook",
+                 telegram_webhook_path="https://gigolo-untracked-viewless.ngrok-free.dev/telegram/webhook")
+    assert s.telegram_webhook_url == "https://gigolo-untracked-viewless.ngrok-free.dev/telegram/webhook"
+
+
+def test_path_without_leading_slash_is_fixed():
+    from app.config import Settings
+    assert Settings(telegram_webhook_path="telegram/webhook").telegram_webhook_path == "/telegram/webhook"
+
+
+def test_base_url_without_scheme_is_rejected_at_startup():
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from app.config import Settings
+    with _pytest.raises(ValidationError, match="absolute https URL"):
+        Settings(telegram_webhook_base_url="gigolo.ngrok-free.dev")

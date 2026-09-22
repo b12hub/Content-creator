@@ -15,6 +15,10 @@ class LLMRefusal(LLMError):
     """Model refused (safety). Not retried."""
 
 
+class MissingApiKey(LLMError):
+    """The provider has no usable credentials. Raised at construction, surfaced as a clear 502."""
+
+
 class LLMClient(Protocol):
     provider: str
     model: str

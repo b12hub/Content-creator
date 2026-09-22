@@ -7,7 +7,7 @@ from typing import TypeVar
 import openai
 from pydantic import BaseModel, ValidationError
 
-from app.llm.base import LLMError
+from app.llm.base import LLMError, MissingApiKey
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -15,9 +15,12 @@ T = TypeVar("T", bound=BaseModel)
 class OpenAIClient:
     provider = "openai"
 
-    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str | None = None):
+    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str):
         if not model:
             raise ValueError("Set BIOLIFE_OPENAI_MODEL when BIOLIFE_LLM_PROVIDER=openai")
+        if not api_key or not api_key.strip() or api_key.strip().endswith("..."):
+            raise MissingApiKey("OPENAI_API_KEY is missing or is still the placeholder.")
+        api_key = api_key.strip()
         self.model = model
         self.max_tokens = max_tokens
         self._client = openai.AsyncOpenAI(api_key=api_key, timeout=timeout_s, max_retries=2)

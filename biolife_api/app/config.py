@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import BaseModel, SecretStr
+from pydantic import AliasChoices, BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,7 +18,17 @@ class CtaChannel(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="BIOLIFE_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="BIOLIFE_", extra="ignore",
+                                      populate_by_name=True)   # lets code/tests set aliased fields
+
+    # API keys live WITHOUT the BIOLIFE_ prefix in .env (that is how the SDKs document them), so they
+    # need an explicit validation_alias: env_prefix is not applied when an alias is given.
+    # pydantic-settings reads .env itself and does NOT copy values into os.environ, which is why the
+    # SDK could not find the key on its own.
+    anthropic_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "BIOLIFE_ANTHROPIC_API_KEY"))
+    openai_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("OPENAI_API_KEY", "BIOLIFE_OPENAI_API_KEY"))
 
     llm_provider: Literal["anthropic", "openai", "fake"] = "anthropic"
     anthropic_model: str = "claude-sonnet-5"
@@ -69,6 +80,53 @@ class Settings(BaseSettings):
     telegram_min_interval_s: float = 0.4                 # per-user throttle
     # Internal bot: Telegram user ids of the marketing team. Empty = everyone (dev only).
     telegram_allowed_user_ids: list[int] = []
+
+    # ---- validation & derived values -------------------------------------------
+    @field_validator("telegram_webhook_path", mode="before")
+    @classmethod
+    def _normalise_path(cls, value: object) -> str:
+        """The PATH must be a local route ('/telegram/webhook'), never a full URL.
+        A pasted URL is reduced to its path instead of breaking routing."""
+        raw = str(value or "").strip()
+        if "://" in raw:
+            raw = urlsplit(raw).path or "/"
+        if not raw.startswith("/"):
+            raw = "/" + raw
+        return raw.rstrip("/") or "/"
+
+    @field_validator("telegram_webhook_base_url", mode="before")
+    @classmethod
+    def _normalise_base(cls, value: object) -> str:
+        """The BASE URL must be scheme + host only, e.g. https://xxx.ngrok-free.dev."""
+        raw = str(value or "").strip().rstrip("/")
+        if not raw:
+            return ""
+        parts = urlsplit(raw)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError("BIOLIFE_TELEGRAM_WEBHOOK_BASE_URL must be an absolute https URL, "
+                             f"e.g. https://your-tunnel.ngrok-free.dev (got {raw!r})")
+        return raw
+
+    @model_validator(mode="after")
+    def _drop_duplicated_path_from_base(self) -> "Settings":
+        """Telegram gets base + path. If the base already carries a path (a common copy-paste
+        mistake, e.g. base '.../webhook'), the two are concatenated and every update 404s.
+        The path segment is dropped here and the app logs what it used."""
+        if self.telegram_webhook_base_url:
+            parts = urlsplit(self.telegram_webhook_base_url)
+            if parts.path:
+                self.base_url_had_path = parts.path
+                self.telegram_webhook_base_url = urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+        return self
+
+    base_url_had_path: str = ""          # set when a path was stripped, for a startup warning
+
+    @property
+    def telegram_webhook_url(self) -> str:
+        """The single source of truth for the public webhook URL."""
+        if not self.telegram_webhook_base_url:
+            return ""
+        return self.telegram_webhook_base_url + self.telegram_webhook_path
 
 
 @lru_cache

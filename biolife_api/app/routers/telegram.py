@@ -71,6 +71,8 @@ async def _process(dp: Dispatcher, bot: Bot, update: Update) -> None:
         log.exception("update %s failed outside handlers", update.update_id)
 
 
+# Registered from the validated setting, so this is always a local path like "/telegram/webhook"
+# (a full URL pasted into the env var is reduced to its path by Settings).
 @router.post(get_settings().telegram_webhook_path, include_in_schema=False)
 async def telegram_webhook(
     request: Request,

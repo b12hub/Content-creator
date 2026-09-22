@@ -59,10 +59,14 @@ def build_dispatcher(settings: Settings) -> Dispatcher:
 
 async def setup_webhook(bot: Bot, settings: Settings) -> None:
     """Idempotent: only calls setWebhook when the URL or secret actually changed."""
+    if settings.base_url_had_path:
+        log.warning("BIOLIFE_TELEGRAM_WEBHOOK_BASE_URL contained the path %r - it was ignored. "
+                    "The base URL must be scheme + host only (https://<host>), the route comes from "
+                    "BIOLIFE_TELEGRAM_WEBHOOK_PATH.", settings.base_url_had_path)
     if not settings.telegram_webhook_base_url:
         log.warning("BIOLIFE_TELEGRAM_WEBHOOK_BASE_URL is empty - webhook not registered")
         return
-    url = settings.telegram_webhook_base_url.rstrip("/") + settings.telegram_webhook_path
+    url = settings.telegram_webhook_url            # single source of truth (validated in Settings)
     info = await bot.get_webhook_info()
     log.info("current webhook: url=%s pending=%s last_error=%s", info.url, info.pending_update_count,
              info.last_error_message)
@@ -76,7 +80,8 @@ async def setup_webhook(bot: Bot, settings: Settings) -> None:
         max_connections=settings.telegram_max_connections,
     )
     await bot.set_my_commands(COMMANDS)
-    log.info("webhook set: %s", url)
+    # Both halves are logged so a mismatch is obvious at a glance.
+    log.info("webhook set: public=%s -> local route POST %s", url, settings.telegram_webhook_path)
 
 
 async def shutdown_bot(bot: Bot, settings: Settings) -> None:

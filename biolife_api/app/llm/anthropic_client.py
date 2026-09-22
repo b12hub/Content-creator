@@ -12,7 +12,7 @@ import anthropic
 from anthropic import transform_schema
 from pydantic import BaseModel, ValidationError
 
-from app.llm.base import LLMError, LLMRefusal
+from app.llm.base import LLMError, LLMRefusal, MissingApiKey
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -20,12 +20,21 @@ T = TypeVar("T", bound=BaseModel)
 class AnthropicClient:
     provider = "anthropic"
 
-    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str | None = None):
+    def __init__(self, model: str, max_tokens: int, timeout_s: float, api_key: str):
+        """The key is passed in explicitly. It is NOT left to the SDK's env lookup: the app reads
+        .env through pydantic-settings, which never copies values into os.environ, so the SDK would
+        find nothing and fail at request time with
+        'Could not resolve authentication method...' (a TypeError, i.e. a 500)."""
+        if not api_key or not api_key.strip():
+            raise MissingApiKey("ANTHROPIC_API_KEY is empty. Put it in .env (no BIOLIFE_ prefix) "
+                                "or export it before starting uvicorn.")
+        if api_key.strip().endswith("...") or api_key.strip() in {"sk-ant-...", "sk-ant-"}:
+            raise MissingApiKey(f"ANTHROPIC_API_KEY still holds the placeholder {api_key.strip()!r} - "
+                                "replace it with the real key from console.anthropic.com.")
         self.model = model
         self.max_tokens = max_tokens
         self._schemas: dict[type, dict] = {}
-        # api_key=None -> SDK reads ANTHROPIC_API_KEY from env
-        self._client = anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout_s, max_retries=2)
+        self._client = anthropic.AsyncAnthropic(api_key=api_key.strip(), timeout=timeout_s, max_retries=2)
 
     def _schema_for(self, schema: type[BaseModel]) -> dict:
         if schema not in self._schemas:
@@ -41,6 +50,9 @@ class AnthropicClient:
                 messages=[{"role": "user", "content": user}],
                 output_config={"format": {"type": "json_schema", "schema": self._schema_for(schema)}},
             )
+        except anthropic.AuthenticationError as e:
+            raise LLMError("Anthropic rejected the API key (401). Check ANTHROPIC_API_KEY in .env "
+                           f"and that the workspace has credit: {e}") from e
         except anthropic.APIError as e:
             raise LLMError(f"Anthropic API error: {e}") from e
 
